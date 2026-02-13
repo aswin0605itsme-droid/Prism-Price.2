@@ -1,61 +1,71 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types";
 
-// Retrieve API_KEY from environment variables (Vite support)
-// Cast import.meta to any to resolve "Property 'env' does not exist on type 'ImportMeta'"
-const API_KEY = (import.meta as any).env?.VITE_GEMINI_API_KEY || process.env.API_KEY;
+// Declare process to avoid TypeScript errors in Vite environment
+declare var process: {
+  env: {
+    API_KEY: string;
+  };
+};
 
-if (!API_KEY) {
-  console.error("CRITICAL: API Key is missing. Please set VITE_GEMINI_API_KEY in your .env file.");
-}
+// The API key must be obtained exclusively from the environment variable process.env.API_KEY
+// We assume this variable is pre-configured and accessible.
+const apiKey = process.env.API_KEY;
 
-const ai = new GoogleGenAI({ apiKey: API_KEY || "missing-key" });
+const ai = new GoogleGenAI({ apiKey: apiKey || "" });
 
-// Models
+// Models - Updated to use Gemini 3 and 2.5 series as per guidelines
 const SEARCH_MODEL = "gemini-3-flash-preview";
-const PRO_MODEL = "gemini-3-pro-preview";
+const PRO_MODEL = "gemini-3-pro-preview"; 
+const IMAGE_GEN_MODEL = "gemini-2.5-flash-image";
 
 export const searchProducts = async (query: string): Promise<Product[]> => {
   try {
-    if (!API_KEY) throw new Error("API Key missing");
-
     const response = await ai.models.generateContent({
       model: SEARCH_MODEL,
-      contents: `Find real-time prices for "${query}" in India. Search Amazon.in and Flipkart.`,
+      contents: `Find real-time prices for "${query}" in India. Search Amazon.in and Flipkart. Return a JSON array of products with id, name, price (number), retailer, imageUrl, link, and specs.`,
       config: {
-        tools: [{ googleSearch: {} }], // Real-time Search Grounding
+        tools: [{ googleSearch: {} }], // Use Search Grounding with Gemini 3 Flash
         responseMimeType: "application/json",
       },
     });
 
     const text = response.text || "[]";
-    // Handle potential markdown code block wrapping
     const jsonString = text.replace(/```json|```/g, "").trim();
-    const rawProducts = JSON.parse(jsonString);
+    
+    let rawProducts;
+    try {
+        rawProducts = JSON.parse(jsonString);
+    } catch (parseError) {
+        console.error("JSON Parse Error", parseError);
+        return [];
+    }
+
+    if (!Array.isArray(rawProducts)) return [];
 
     return rawProducts.map((p: any) => ({
       id: p.id || Math.random().toString(36).substring(7),
-      name: p.name,
-      price: p.price,
+      name: p.name || "Unknown Product",
+      price: typeof p.price === 'number' ? p.price : parseInt(p.price) || 0,
       currency: "INR",
       retailer: p.retailer || "Online",
       imageUrl: p.imageUrl || "https://placehold.co/400?text=Product",
-      link: p.link && p.link !== "#" ? p.link : `https://www.google.com/search?q=${encodeURIComponent(p.name)}`,
+      link: p.link || "#",
       specs: p.specs || {}
     }));
   } catch (error: any) {
-    console.error("Search Error - Falling back to demo data:", error);
-    // Return fallback data if API fails (e.g. 429)
+    console.error("Search API Error:", error);
+    // Return fallback data
     return [
       { 
         id: "d1", 
         name: `${query} (Search Result)`, 
-        price: 12999, 
+        price: 19999, 
         currency: "INR", 
-        retailer: "Amazon", // Fixed: Was "Amazon.in" which caused a type error
+        retailer: "Amazon", 
         imageUrl: "https://placehold.co/400?text=Product", 
         link: "#", 
-        specs: { "Note": "Demo Data (API Quota Exceeded)" } 
+        specs: { "Note": "Demo Data (API Error)" } 
       }
     ];
   }
@@ -63,66 +73,75 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
 
 export const analyzeImage = async (base64Data: string, mimeType: string): Promise<string> => {
   try {
-    if (!API_KEY) throw new Error("API Key missing");
     const cleanData = base64Data.split(',')[1] || base64Data;
     const response = await ai.models.generateContent({
-      model: SEARCH_MODEL,
-      contents: [
-        { inlineData: { data: cleanData, mimeType } },
-        { text: "Identify this product name." }
-      ]
+      model: PRO_MODEL, // Use Pro model for complex reasoning tasks
+      contents: {
+        parts: [
+            { inlineData: { data: cleanData, mimeType } },
+            { text: "Identify this product name and estimated price in INR." }
+        ]
+      }
     });
     return response.text || "Product not identified.";
   } catch (error) {
+    console.error("Vision API Error:", error);
     return "Vision analysis unavailable.";
   }
 };
 
 export const chatWithGemini = async (history: any[], newMessage: string) => {
   try {
-    if (!API_KEY) throw new Error("API Key missing");
-    const response = await ai.models.generateContent({
-      model: PRO_MODEL,
-      contents: newMessage
+    // Use Chat API for correct context handling
+    const chat = ai.chats.create({
+        model: PRO_MODEL,
+        history: history
     });
-    return response.text || "Assistant is optimizing.";
+    const response = await chat.sendMessage({ message: newMessage });
+    return response.text || "I'm having trouble connecting right now.";
   } catch (error) {
-    return "Chat mode is offline.";
+    return "Chat service unavailable.";
   }
 };
 
 export const analyzeProductDeeply = async (productName: string) => {
-    return `Deep analysis for ${productName} is complete: High value-for-money rating.`;
+    try {
+        const response = await ai.models.generateContent({
+            model: PRO_MODEL,
+            contents: `Analyze ${productName}. Give a 1-sentence value verdict.`
+        });
+        return response.text;
+    } catch (e) {
+        return "Deep analysis unavailable.";
+    }
 };
 
-// Updated signature to accept ratio and implemented actual image generation
 export const generateConceptImage = async (prompt: string, ratio: string = '1:1') => {
   try {
-    if (!API_KEY) throw new Error("API Key missing");
-    
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: IMAGE_GEN_MODEL,
       contents: {
-        parts: [{ text: prompt }]
+        parts: [
+            { text: prompt }
+        ]
       },
       config: {
         imageConfig: {
-          aspectRatio: ratio
+            aspectRatio: ratio as any // Cast to any to satisfy specific string literal types if needed
         }
       }
     });
-    
-    // Iterate to find image part as per guidelines
-    if (response.candidates?.[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-            if (part.inlineData) {
-                return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-            }
+
+    // Extract image from response
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+        if (part.inlineData) {
+            return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
         }
     }
-    return "https://placehold.co/600x400?text=Concept+Generated";
+    
+    return `https://placehold.co/600x600/1e1e2e/FFF?text=${encodeURIComponent(prompt.slice(0, 20))}`;
   } catch (error) {
-    console.error("Image Gen Error:", error);
+    console.error("Image Generation Error:", error);
     return "https://placehold.co/600x400?text=Service+Unavailable";
   }
 };
