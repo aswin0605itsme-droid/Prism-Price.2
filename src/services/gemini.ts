@@ -1,43 +1,49 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { Product, AspectRatio } from "../types";
 
-// Initialize Gemini Client
-// The API key must be obtained exclusively from the environment variable process.env.API_KEY
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Initialize Gemini Client using the VITE_ prefixed env variable as per Vite standards
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+const genAI = new GoogleGenerativeAI(apiKey);
 
-// 1. Search Products (Gemini 3 Flash Preview for Basic Text Tasks)
+// Helper function to get model instance
+export const getGeminiModel = (modelName: string = "gemini-1.5-flash") => {
+  return genAI.getGenerativeModel({ model: modelName });
+};
+
+// 1. Search Products (Gemini 1.5 Flash)
 export const searchProducts = async (query: string): Promise<Product[]> => {
   try {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              id: { type: SchemaType.STRING },
+              name: { type: SchemaType.STRING },
+              price: { type: SchemaType.NUMBER },
+              currency: { type: SchemaType.STRING },
+              retailer: { type: SchemaType.STRING },
+              imageUrl: { type: SchemaType.STRING },
+              link: { type: SchemaType.STRING },
+            },
+            required: ["name", "price", "retailer"],
+          },
+        },
+      },
+    });
+
     const prompt = `Find current prices for "${query}" from major Indian retailers like Amazon.in, Flipkart, Croma, and Reliance Digital. 
     Return a JSON array of 4-6 distinct products. 
     For each product, strictly allow "Amazon", "Flipkart", "Croma", "Reliance Digital" as retailers.
     Include a realistic price in INR (number only), a product name, and a direct purchase link if found (or a search link).
     Use placeholder image URLs from https://picsum.photos/400/400 if specific ones aren't available.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              id: { type: Type.STRING },
-              name: { type: Type.STRING },
-              price: { type: Type.NUMBER },
-              currency: { type: Type.STRING },
-              retailer: { type: Type.STRING },
-              imageUrl: { type: Type.STRING },
-              link: { type: Type.STRING },
-            },
-          }
-        }
-      }
-    });
-
-    const responseText = response.text;
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
 
     if (responseText) {
       return JSON.parse(responseText) as Product[];
@@ -49,99 +55,69 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
   }
 };
 
-// 2. Chat with Gemini (Gemini 3 Pro Preview for Complex Tasks)
+// 2. Chat with Gemini (Gemini 1.5 Pro)
 export const chatWithGemini = async (history: { role: string, parts: { text: string }[] }[], newMessage: string) => {
   try {
-    const formattedHistory = history.map(h => ({
-      role: h.role === 'init' ? 'user' : h.role,
-      parts: h.parts
-    })).filter(h => h.role === 'user' || h.role === 'model');
+    const model = getGeminiModel("gemini-1.5-pro");
+    
+    // Filter history to ensure valid roles (user/model) and correct structure
+    const validHistory = history
+      .filter(h => h.role === 'user' || h.role === 'model')
+      .map(h => ({
+        role: h.role as "user" | "model",
+        parts: h.parts
+      }));
 
-    const chat = ai.chats.create({
-      model: "gemini-3-pro-preview",
-      history: formattedHistory,
+    const chat = model.startChat({
+      history: validHistory,
     });
     
-    const result = await chat.sendMessage({ message: newMessage });
-    return result.text || "";
+    const result = await chat.sendMessage(newMessage);
+    return result.response.text();
   } catch (error) {
     console.error("Chat Error:", error);
     return "I'm having trouble connecting right now.";
   }
 };
 
-// 3. Deep Analysis (Gemini 3 Pro Preview)
+// 3. Deep Analysis (Gemini 1.5 Pro)
 export const analyzeProductDeeply = async (productName: string): Promise<string> => {
   try {
+    const model = getGeminiModel("gemini-1.5-pro");
     const prompt = `Provide a deep technical analysis and "should you buy" verdict for: ${productName}. 
       Compare it with its top 2 competitors. Be critical and concise.`;
     
-    const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
-      contents: prompt
-    });
-    
-    return response.text || "Analysis failed.";
+    const result = await model.generateContent(prompt);
+    return result.response.text();
   } catch (error) {
     console.error("Analysis Error:", error);
     return "Analysis unavailable.";
   }
 };
 
-// 4. Generate Product Concept (Gemini 2.5 Flash Image)
+// 4. Generate Product Concept (Stub - standard SDK doesn't support image gen yet)
 export const generateConceptImage = async (prompt: string, aspectRatio: AspectRatio): Promise<string | null> => {
-  try {
-    console.log("Image generation requested for:", prompt);
-    // Supported ratios: "1:1", "3:4", "4:3", "9:16", "16:9"
-    // Handle unsupported '21:9' gracefully
-    let ratioConfig = aspectRatio as string;
-    if (ratioConfig === '21:9') ratioConfig = '16:9';
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [{ text: prompt }]
-      },
-      config: {
-        imageConfig: {
-          aspectRatio: ratioConfig as any,
-        }
-      }
-    });
-
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
-    }
-    return null;
-  } catch (error) {
-    console.error("Image Gen Error:", error);
-    return null;
-  }
+  console.log("Image generation requested:", prompt, aspectRatio);
+  // Returning null as gemini-1.5-flash does not support image generation via this SDK method
+  return null;
 };
 
-// 5. Analyze Uploaded Image (Gemini 3 Pro Preview)
+// 5. Analyze Uploaded Image (Gemini 1.5 Flash Vision)
 export const analyzeImage = async (base64Data: string, mimeType: string): Promise<string> => {
   try {
-    const imagePart = {
-      inlineData: {
-        data: base64Data,
-        mimeType: mimeType,
-      },
-    };
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
-      contents: {
-        parts: [
-          { text: "Identify this product and estimate its price in INR." },
-          imagePart
-        ]
-      }
-    });
+    const model = getGeminiModel("gemini-1.5-flash");
     
-    return response.text || "Could not identify image.";
+    const result = await model.generateContent([
+      "Identify this product and estimate its price in INR. Return the name and price.",
+      {
+        inlineData: {
+          data: base64Data,
+          mimeType: mimeType
+        }
+      }
+    ]);
+    
+    return result.response.text();
   } catch (error) {
     console.error("Vision Error:", error);
     return "Error analyzing image.";
