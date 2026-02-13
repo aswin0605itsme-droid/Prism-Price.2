@@ -1,6 +1,11 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types";
+
+declare var process: {
+  env: {
+    API_KEY: string;
+  };
+};
 
 // Lazy initialization holder
 let aiClient: GoogleGenAI | null = null;
@@ -8,12 +13,11 @@ let aiClient: GoogleGenAI | null = null;
 const getAiClient = (): GoogleGenAI | null => {
   if (aiClient) return aiClient;
   
-  // The API key must be obtained exclusively from the environment variable process.env.API_KEY
-  // per strict coding guidelines. Assume it is configured and available in the execution context.
+  // Access the API key using process.env as per guidelines
   const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
-    console.error("API Key is missing. Ensure process.env.API_KEY is properly set.");
+    console.error("Configuration Error: API_KEY is undefined. Please check your .env file.");
     return null;
   }
   
@@ -52,7 +56,10 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
           "retailer": "Amazon",
           "imageUrl": "https://...",
           "link": "https://www.amazon.in/dp/...", 
-          "specs": { "Language": "English", "Format": "Paperback" }
+          "specs": [
+            { "key": "Language", "value": "English" },
+            { "key": "Format", "value": "Paperback" }
+          ]
         }
       ]
 
@@ -73,9 +80,16 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
               imageUrl: { type: Type.STRING },
               link: { type: Type.STRING },
               specs: { 
-                type: Type.OBJECT,
-                properties: {}, 
-                description: "Key-value pairs of technical specifications"
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    key: { type: Type.STRING },
+                    value: { type: Type.STRING }
+                  },
+                  required: ["key", "value"]
+                },
+                description: "List of technical specifications as key-value pairs"
               }
             },
             required: ["name", "price", "retailer", "link", "imageUrl"],
@@ -97,14 +111,26 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
         jsonStr = text.replace(/^```json\n?|\n?```$/g, '').trim();
     }
 
-    if (!jsonStr) return [];
+    if (!jsonStr) {
+      console.warn("Gemini returned invalid JSON structure:", text);
+      return [];
+    }
     
-    const products = JSON.parse(jsonStr) as Product[];
+    const rawProducts = JSON.parse(jsonStr);
     
-    // Post-process to ensure valid links
-    return products.map(p => ({
-        ...p,
-        link: p.link?.startsWith('http') ? p.link : `https://${p.link}`
+    // Post-process to ensure valid links and convert specs array to object
+    return rawProducts.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        currency: p.currency,
+        retailer: p.retailer,
+        imageUrl: p.imageUrl,
+        link: p.link?.startsWith('http') ? p.link : `https://${p.link}`,
+        specs: Array.isArray(p.specs) ? p.specs.reduce((acc: any, item: any) => {
+           if(item.key && item.value) acc[item.key] = item.value;
+           return acc;
+        }, {}) : {}
     }));
 
   } catch (error) {

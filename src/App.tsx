@@ -45,7 +45,7 @@ const TRENDING_PRODUCTS: Product[] = [
 ];
 
 function App() {
-  const { products, isLoading, viewMode, setViewMode, wishlist, filters, comparisonList, recentlyViewed } = useStore();
+  const { products, isLoading, loadingStatus, viewMode, setViewMode, wishlist, filters, comparisonList, recentlyViewed } = useStore();
 
   const filteredProducts = products.filter(product => {
     if (filters.retailers.length > 0 && !filters.retailers.includes(product.retailer)) {
@@ -209,12 +209,15 @@ function App() {
             {isLoading && (
               <div className="flex flex-col items-center justify-center py-20 text-white/50 space-y-6">
                 <div className="relative">
-                  <div className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+                  <div className="w-20 h-20 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                    <div className="w-16 h-16 bg-white/5 rounded-full animate-pulse"></div>
                   </div>
                 </div>
-                <p className="font-bold tracking-widest uppercase text-xs animate-pulse">Scanning Retailers...</p>
+                <div className="text-center space-y-2">
+                   <p className="font-bold tracking-widest uppercase text-xs text-indigo-400 animate-pulse">{loadingStatus}</p>
+                   <p className="text-xs text-white/30">Powered by Gemini 3 Flash</p>
+                </div>
               </div>
             )}
           </>

@@ -6,24 +6,26 @@ interface AppState {
   searchQuery: string;
   products: Product[];
   isLoading: boolean;
+  loadingStatus: string; // New State for detailed feedback
   isThinking: boolean;
   chatMessages: ChatMessage[];
   isChatOpen: boolean;
   wishlist: Product[];
   comparisonList: Product[];
-  recentlyViewed: Product[]; // New State
+  recentlyViewed: Product[];
   viewMode: ViewMode;
   filters: FilterState;
   
   setSearchQuery: (query: string) => void;
   setProducts: (products: Product[]) => void;
   setIsLoading: (loading: boolean) => void;
+  setLoadingStatus: (status: string) => void; // New Action
   setIsThinking: (thinking: boolean) => void;
   addChatMessage: (message: ChatMessage) => void;
   toggleChat: () => void;
   toggleWishlist: (product: Product) => void;
   toggleComparison: (product: Product) => void;
-  addToRecentlyViewed: (product: Product) => void; // New Action
+  addToRecentlyViewed: (product: Product) => void;
   setViewMode: (mode: ViewMode) => void;
   setFilters: (filters: Partial<FilterState>) => void;
   resetFilters: () => void;
@@ -50,6 +52,7 @@ export const useStore = create<AppState>((set) => ({
   searchQuery: '',
   products: [],
   isLoading: false,
+  loadingStatus: 'Initializing Search...',
   isThinking: false,
   chatMessages: [{
     id: 'init',
@@ -60,7 +63,7 @@ export const useStore = create<AppState>((set) => ({
   isChatOpen: false,
   wishlist: loadFromStorage('prism_wishlist'),
   comparisonList: [], 
-  recentlyViewed: loadFromStorage('prism_recent'), // Load recently viewed
+  recentlyViewed: loadFromStorage('prism_recent'),
   viewMode: 'search',
   filters: {
     retailers: [],
@@ -71,6 +74,7 @@ export const useStore = create<AppState>((set) => ({
   setSearchQuery: (query) => set({ searchQuery: query }),
   setProducts: (products) => set({ products }),
   setIsLoading: (isLoading) => set({ isLoading }),
+  setLoadingStatus: (loadingStatus) => set({ loadingStatus }),
   setIsThinking: (isThinking) => set({ isThinking }),
   addChatMessage: (message) => set((state) => ({ chatMessages: [...state.chatMessages, message] })),
   toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen })),
@@ -92,7 +96,7 @@ export const useStore = create<AppState>((set) => ({
     if (exists) {
       return { comparisonList: state.comparisonList.filter((p) => p.id !== product.id) };
     }
-    if (state.comparisonList.length >= 4) { // Increased limit to 4
+    if (state.comparisonList.length >= 4) {
       return state; 
     }
     return { comparisonList: [...state.comparisonList, product] };
