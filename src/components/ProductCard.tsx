@@ -16,7 +16,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showChart, setShowChart] = useState(false);
   
-  const { wishlist, toggleWishlist, comparisonList, toggleComparison } = useStore();
+  const { wishlist, toggleWishlist, comparisonList, toggleComparison, addToRecentlyViewed } = useStore();
   
   const isWishlisted = wishlist.some(p => p.id === product.id || p.name === product.name);
   const isComparing = comparisonList.some(p => p.id === product.id);
@@ -60,6 +60,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   const handleDeepThink = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    addToRecentlyViewed(product); // Track Interaction
     if (analysis) {
       setAnalysis(null);
       return;
@@ -77,8 +78,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   const handleGetDeal = (e: React.MouseEvent) => {
     e.preventDefault();
+    addToRecentlyViewed(product); // Track Interaction
     trackAndRedirect(product);
   };
+
+  const handleShowChart = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      addToRecentlyViewed(product); // Track Interaction
+      setShowChart(true);
+  }
 
   return (
     <div className={`group relative bg-slate-900/40 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] overflow-hidden transition-all duration-500 hover:scale-[1.02] hover:-translate-y-2 flex flex-col h-full ${theme.glow} hover:shadow-[0_20px_80px_-15px_rgba(0,0,0,0.5)]`}>
@@ -149,7 +157,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </div>
 
           <button 
-            onClick={() => setShowChart(true)}
+            onClick={handleShowChart}
             className="p-3 rounded-xl bg-slate-950/40 hover:bg-indigo-500/20 text-white/30 hover:text-indigo-400 border border-white/5 hover:border-indigo-500/30 transition-all shadow-xl"
             title="Price History"
           >

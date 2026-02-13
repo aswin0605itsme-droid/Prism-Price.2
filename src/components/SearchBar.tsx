@@ -1,9 +1,16 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Camera, Loader2, History, Clock } from 'lucide-react';
+import { Search, Camera, Loader2, History, Clock, Sparkles } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { searchProducts, analyzeImage } from '../services/gemini';
 import { useSearchHistory } from '../hooks/useSearchHistory';
+
+// Mock Predictive Suggestions
+const POPULAR_SEARCHES = [
+  "iPhone 15 Pro Max", "Samsung Galaxy S24 Ultra", "Sony WH-1000XM5", 
+  "MacBook Air M3", "PlayStation 5 Slim", "Nintendo Switch OLED", 
+  "iPad Air 2024", "Dell XPS 13", "GoPro Hero 12"
+];
 
 export const SearchBar: React.FC = () => {
   const [localQuery, setLocalQuery] = useState('');
@@ -13,7 +20,6 @@ export const SearchBar: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
@@ -32,7 +38,7 @@ export const SearchBar: React.FC = () => {
     setIsFocused(false);
     addToHistory(query);
     setIsLoading(true);
-    setProducts([]); // Clear previous
+    setProducts([]); 
 
     const results = await searchProducts(query);
     setProducts(results);
@@ -64,6 +70,11 @@ export const SearchBar: React.FC = () => {
     };
     reader.readAsDataURL(file);
   };
+
+  // Filter predictive text
+  const predictiveSuggestions = POPULAR_SEARCHES.filter(
+    s => s.toLowerCase().includes(localQuery.toLowerCase()) && !history.includes(s)
+  ).slice(0, 3);
 
   return (
     <div className="w-full max-w-3xl mx-auto relative z-30" ref={wrapperRef}>
@@ -106,25 +117,51 @@ export const SearchBar: React.FC = () => {
         </div>
       </form>
 
-      {/* Intelligent Autocomplete Dropdown */}
-      {isFocused && history.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-3 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="px-4 py-3 border-b border-white/5 flex items-center gap-2 text-xs font-bold text-white/40 uppercase tracking-widest">
-            <Clock className="w-3 h-3" /> Recent Searches
-          </div>
-          <ul className="py-2">
-            {history.map((term, index) => (
-              <li key={index}>
-                <button
-                  onClick={() => executeSearch(term)}
-                  className="w-full text-left px-5 py-3 hover:bg-white/5 text-white/80 hover:text-indigo-300 transition-colors flex items-center gap-3 group"
-                >
-                  <History className="w-4 h-4 text-white/30 group-hover:text-indigo-400 transition-colors" />
-                  <span className="font-medium">{term}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+      {/* Unified Dropdown */}
+      {isFocused && (history.length > 0 || predictiveSuggestions.length > 0) && (
+        <div className="absolute top-full left-0 right-0 mt-3 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 divide-y divide-white/5">
+          
+          {history.length > 0 && (
+            <div>
+                <div className="px-4 py-3 flex items-center gap-2 text-[10px] font-black text-white/40 uppercase tracking-widest bg-white/5">
+                    <Clock className="w-3 h-3" /> Recent
+                </div>
+                <ul className="py-1">
+                    {history.map((term, index) => (
+                    <li key={index}>
+                        <button
+                        onClick={() => executeSearch(term)}
+                        className="w-full text-left px-5 py-3 hover:bg-white/5 text-white/80 hover:text-indigo-300 transition-colors flex items-center gap-3 group"
+                        >
+                        <History className="w-4 h-4 text-white/30 group-hover:text-indigo-400 transition-colors" />
+                        <span className="font-medium text-sm">{term}</span>
+                        </button>
+                    </li>
+                    ))}
+                </ul>
+            </div>
+          )}
+
+          {predictiveSuggestions.length > 0 && (
+             <div>
+                <div className="px-4 py-3 flex items-center gap-2 text-[10px] font-black text-white/40 uppercase tracking-widest bg-white/5">
+                    <Sparkles className="w-3 h-3 text-purple-400" /> Trending
+                </div>
+                <ul className="py-1">
+                    {predictiveSuggestions.map((term, index) => (
+                    <li key={`pred-${index}`}>
+                        <button
+                        onClick={() => executeSearch(term)}
+                        className="w-full text-left px-5 py-3 hover:bg-white/5 text-white/80 hover:text-purple-300 transition-colors flex items-center gap-3 group"
+                        >
+                        <Search className="w-4 h-4 text-white/30 group-hover:text-purple-400 transition-colors" />
+                        <span className="font-medium text-sm">{term}</span>
+                        </button>
+                    </li>
+                    ))}
+                </ul>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -11,6 +11,7 @@ interface AppState {
   isChatOpen: boolean;
   wishlist: Product[];
   comparisonList: Product[];
+  recentlyViewed: Product[]; // New State
   viewMode: ViewMode;
   filters: FilterState;
   
@@ -22,22 +23,23 @@ interface AppState {
   toggleChat: () => void;
   toggleWishlist: (product: Product) => void;
   toggleComparison: (product: Product) => void;
+  addToRecentlyViewed: (product: Product) => void; // New Action
   setViewMode: (mode: ViewMode) => void;
   setFilters: (filters: Partial<FilterState>) => void;
   resetFilters: () => void;
 }
 
-const saveWishlist = (wishlist: Product[]) => {
+const saveToStorage = (key: string, data: any) => {
   try {
-    localStorage.setItem('prism_wishlist', JSON.stringify(wishlist));
+    localStorage.setItem(key, JSON.stringify(data));
   } catch (e) {
-    console.error('Failed to save wishlist', e);
+    console.error(`Failed to save ${key}`, e);
   }
 };
 
-const loadWishlist = (): Product[] => {
+const loadFromStorage = (key: string) => {
   try {
-    const saved = localStorage.getItem('prism_wishlist');
+    const saved = localStorage.getItem(key);
     return saved ? JSON.parse(saved) : [];
   } catch (e) {
     return [];
@@ -56,8 +58,9 @@ export const useStore = create<AppState>((set) => ({
     timestamp: Date.now()
   }],
   isChatOpen: false,
-  wishlist: loadWishlist(),
-  comparisonList: [], // New Comparison State
+  wishlist: loadFromStorage('prism_wishlist'),
+  comparisonList: [], 
+  recentlyViewed: loadFromStorage('prism_recent'), // Load recently viewed
   viewMode: 'search',
   filters: {
     retailers: [],
@@ -80,21 +83,29 @@ export const useStore = create<AppState>((set) => ({
     } else {
       newWishlist = [...state.wishlist, product];
     }
-    saveWishlist(newWishlist);
+    saveToStorage('prism_wishlist', newWishlist);
     return { wishlist: newWishlist };
   }),
 
-  // Toggle Comparison Logic (Max 4 items)
   toggleComparison: (product) => set((state) => {
     const exists = state.comparisonList.some((p) => p.id === product.id);
     if (exists) {
       return { comparisonList: state.comparisonList.filter((p) => p.id !== product.id) };
     }
-    if (state.comparisonList.length >= 3) {
-      // Optional: Add a toast notification here in a real app
+    if (state.comparisonList.length >= 4) { // Increased limit to 4
       return state; 
     }
     return { comparisonList: [...state.comparisonList, product] };
+  }),
+
+  addToRecentlyViewed: (product) => set((state) => {
+    const exists = state.recentlyViewed.some((p) => p.id === product.id);
+    if (exists) return state;
+    
+    // Keep max 10 items
+    const newRecent = [product, ...state.recentlyViewed].slice(0, 10);
+    saveToStorage('prism_recent', newRecent);
+    return { recentlyViewed: newRecent };
   }),
 
   setViewMode: (viewMode) => set({ viewMode }),
