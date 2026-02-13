@@ -137,8 +137,8 @@ export const SearchBar: React.FC = () => {
     <div className="w-full max-w-3xl mx-auto relative z-30" ref={wrapperRef}>
       <form onSubmit={handleSearch} className="relative group">
         <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-500"></div>
-        <div className="relative flex items-center bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-2 shadow-2xl">
-          <Search className="text-white/50 ml-4 w-6 h-6" />
+        <div className="relative flex items-center bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-2 shadow-2xl overflow-hidden">
+          <Search className={`ml-4 w-6 h-6 transition-colors duration-300 ${isLoading ? 'text-indigo-400 animate-pulse' : 'text-white/50'}`} />
           <input
             type="text"
             value={localQuery}
@@ -171,9 +171,16 @@ export const SearchBar: React.FC = () => {
               disabled={isLoading}
               className={`bg-white text-indigo-900 px-6 py-3 rounded-xl font-semibold hover:scale-105 transition-all active:scale-95 flex items-center gap-2 ${isLoading ? 'opacity-80' : ''}`}
             >
-              {isLoading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Search Prices'}
+              {isLoading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Search'}
             </button>
           </div>
+
+          {/* Shimmering Progress Bar Indicator */}
+          {isLoading && (
+            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/5 w-full">
+              <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-400 to-indigo-500 w-full animate-shimmer"></div>
+            </div>
+          )}
         </div>
       </form>
       
