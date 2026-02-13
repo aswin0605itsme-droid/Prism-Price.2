@@ -2,14 +2,34 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types";
 
-// Initialize Gemini Client using the mandatory process.env.API_KEY
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Lazy initialization holder
+let aiClient: GoogleGenAI | null = null;
+
+const getAiClient = (): GoogleGenAI | null => {
+  if (aiClient) return aiClient;
+  
+  // Using process.env.API_KEY as per strict system configuration.
+  // In a Vite environment, ensure this is defined in your vite.config.ts or via .env files 
+  // compatible with your build process (e.g. VITE_API_KEY mapped to process.env.API_KEY).
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey) {
+    console.error("API Key is missing. Ensure process.env.API_KEY is available.");
+    return null;
+  }
+  
+  aiClient = new GoogleGenAI({ apiKey });
+  return aiClient;
+};
 
 /**
  * Searches for products using Gemini 3 Flash with Google Search Grounding.
  * Actively browses for current real-world prices.
  */
 export const searchProducts = async (query: string): Promise<Product[]> => {
+  const ai = getAiClient();
+  if (!ai) return [];
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -72,6 +92,9 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
  * Generates a chatbot response using Gemini 3 Pro.
  */
 export const chatWithGemini = async (history: { role: string, parts: { text: string }[] }[], newMessage: string) => {
+  const ai = getAiClient();
+  if (!ai) return "I'm currently offline due to a missing configuration.";
+
   try {
     const chat = ai.chats.create({
       model: 'gemini-3-pro-preview',
@@ -92,6 +115,9 @@ export const chatWithGemini = async (history: { role: string, parts: { text: str
  * Provides a deep technical analysis using Gemini 3 Pro.
  */
 export const analyzeProductDeeply = async (productName: string): Promise<string> => {
+  const ai = getAiClient();
+  if (!ai) return "Analysis unavailable.";
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
@@ -108,6 +134,9 @@ export const analyzeProductDeeply = async (productName: string): Promise<string>
  * Analyzes an uploaded image using Gemini 3 Pro.
  */
 export const analyzeImage = async (base64Data: string, mimeType: string): Promise<string> => {
+  const ai = getAiClient();
+  if (!ai) return "Image analysis unavailable.";
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
@@ -130,6 +159,9 @@ export const analyzeImage = async (base64Data: string, mimeType: string): Promis
  * Following guidelines for nano banana series image generation.
  */
 export const generateConceptImage = async (prompt: string, aspectRatio: string): Promise<string> => {
+  const ai = getAiClient();
+  if (!ai) throw new Error("Image generation unavailable");
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
