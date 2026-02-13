@@ -19,9 +19,9 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
   try {
     const ai = getAiClient();
     
-    // Using gemini-2.0-flash for speed and stability
+    // CHANGED TO 1.5-FLASH FOR BETTER STABILITY & FREE TIER LIMITS
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-1.5-flash',
       contents: {
         parts: [
           { 
@@ -75,9 +75,12 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
       specs: (p.specs && !Array.isArray(p.specs)) ? p.specs : {}
     }));
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Search Error:", error);
-    // Return empty array instead of crashing app
+    // Specific check for Quota limits
+    if (error.message?.includes("429")) {
+        console.warn("Quota exceeded. Please wait a minute.");
+    }
     return [];
   }
 };
@@ -91,7 +94,7 @@ export const chatWithGemini = async (history: any[], newMessage: string) => {
   try {
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-1.5-flash',
       contents: {
         parts: [{ text: `User: ${newMessage}\nAI (You are a shopping assistant):` }]
       }
@@ -110,7 +113,7 @@ export const analyzeImage = async (base64Data: string, mimeType: string): Promis
   try {
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-1.5-flash',
       contents: {
         parts: [
           { inlineData: { data: base64Data, mimeType: mimeType } },
@@ -132,7 +135,7 @@ export const analyzeProductDeeply = async (productName: string): Promise<string>
   try {
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-1.5-flash',
       contents: {
         parts: [{ text: `Analyze the value for money of "${productName}" in 50 words.` }]
       }
