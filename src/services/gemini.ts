@@ -1,65 +1,53 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai"; // <--- SWITCHED TO STABLE SDK
 import { Product } from "../types";
 
 // --- CONFIGURATION ---
 
+// Use the standard VITE env variable
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-const getAiClient = (): GoogleGenAI => {
-  if (!API_KEY) {
-    console.error("CRITICAL: VITE_GEMINI_API_KEY is missing in .env file");
-    throw new Error("API Key is missing. Please check your .env configuration.");
-  }
-  return new GoogleGenAI({ apiKey: API_KEY });
-};
+if (!API_KEY) {
+  console.error("CRITICAL: API Key missing. Check .env file.");
+}
+
+// Initialize the Stable Client
+const genAI = new GoogleGenerativeAI(API_KEY);
 
 // --- MAIN SEARCH FUNCTION ---
 
 export const searchProducts = async (query: string): Promise<Product[]> => {
   try {
-    const ai = getAiClient();
+    // Use the reliable 1.5 Flash model
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
-    // USING GEMINI 1.5 FLASH (High Rate Limits, Stable)
-    const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
-      contents: {
-        parts: [
-          { 
-            text: `You are an expert shopping assistant. Estimate the current market price for: "${query}" in India.
+    const prompt = `You are an expert shopping assistant. Estimate the current market price for: "${query}" in India.
             
-            OUTPUT RULES:
-            1. Return a JSON array ONLY.
-            2. Suggest 3 reliable retailers (e.g., Amazon.in, Flipkart, Croma).
-            3. Use realistic estimated pricing in INR based on your knowledge.
-            
-            JSON FORMAT:
-            [
-              {
-                "id": "unique_id",
-                "name": "Product Name",
-                "price": 0,
-                "currency": "INR",
-                "retailer": "Retailer Name",
-                "imageUrl": "https://placehold.co/400?text=Product",
-                "link": "https://amazon.in",
-                "specs": { "Key": "Value" }
-              }
-            ]`
-          }
-        ]
-      },
-      // REMOVED "tools: [{ googleSearch: {} }]" to fix the 404 Error
-      config: {
-        responseMimeType: "application/json",
-      },
-    });
+    OUTPUT RULES:
+    1. Return a JSON array ONLY.
+    2. Suggest 3 reliable retailers (e.g., Amazon.in, Flipkart, Croma).
+    3. Use realistic estimated pricing in INR.
+    
+    JSON FORMAT:
+    [
+      {
+        "id": "unique_id",
+        "name": "Product Name",
+        "price": 0,
+        "currency": "INR",
+        "retailer": "Retailer Name",
+        "imageUrl": "https://placehold.co/400?text=Product",
+        "link": "https://amazon.in",
+        "specs": { "Key": "Value" }
+      }
+    ]`;
 
-    // Robust JSON Extraction
-    const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    // Clean JSON
     const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/\[\s*\{[\s\S]*\}\s*\]/);
     const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text.replace(/^```json\n?|\n?```$/g, '').trim();
-
-    if (!jsonStr) throw new Error("Invalid JSON from AI");
 
     const rawProducts = JSON.parse(jsonStr);
 
@@ -74,7 +62,7 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
       specs: (p.specs && !Array.isArray(p.specs)) ? p.specs : {}
     }));
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Search Error:", error);
     return [];
   }
@@ -84,52 +72,52 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
 
 export const chatWithGemini = async (history: any[], newMessage: string) => {
   try {
-    const ai = getAiClient();
-    const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
-      contents: {
-        parts: [{ text: `User: ${newMessage}\nAI (You are a shopping assistant):` }]
-      }
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const chat = model.startChat({
+        history: history.map(h => ({
+            role: h.role === 'ai' ? 'model' : 'user',
+            parts: [{ text: h.parts[0].text }]
+        }))
     });
-    return response.candidates?.[0]?.content?.parts?.[0]?.text || "I didn't catch that.";
+    
+    const result = await chat.sendMessage(newMessage);
+    return result.response.text();
   } catch (error) {
     console.error("Chat Error:", error);
-    return "Chat service is offline.";
+    return "I'm having trouble connecting right now.";
   }
 };
 
 export const analyzeImage = async (base64Data: string, mimeType: string): Promise<string> => {
   try {
-    const ai = getAiClient();
-    const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
-      contents: {
-        parts: [
-          { inlineData: { data: base64Data, mimeType: mimeType } },
-          { text: "Identify this product and estimate its price in India (INR)." }
-        ]
-      }
-    });
-    return response.candidates?.[0]?.content?.parts?.[0]?.text || "Could not identify image.";
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    // Fix Base64 format if needed (remove "data:image/..." header)
+    const cleanBase64 = base64Data.split(',')[1] || base64Data;
+    
+    const result = await model.generateContent([
+        "Identify this product and estimate its price in India (INR).",
+        {
+            inlineData: {
+                data: cleanBase64,
+                mimeType: mimeType
+            }
+        }
+    ]);
+    return result.response.text();
   } catch (error) {
     console.error("Vision Error:", error);
-    return "Image analysis failed.";
+    return "Could not identify image.";
   }
 };
 
 export const analyzeProductDeeply = async (productName: string): Promise<string> => {
   try {
-    const ai = getAiClient();
-    const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
-      contents: {
-        parts: [{ text: `Analyze the value for money of "${productName}" in 50 words.` }]
-      }
-    });
-    return response.candidates?.[0]?.content?.parts?.[0]?.text || "Analysis unavailable.";
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(`Analyze the value for money of "${productName}" in 50 words.`);
+    return result.response.text();
   } catch (error) {
-    console.error("Deep Analysis Error:", error);
-    return "Deep analysis unavailable.";
+    return "Analysis unavailable.";
   }
 };
 
