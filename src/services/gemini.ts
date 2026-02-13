@@ -1,29 +1,27 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { Product } from "../types";
 
-// --- 1. CONFIGURATION & SETUP ---
+// --- CONFIGURATION ---
 
-// Use the correct Vite environment variable
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-// Helper to get the client safely
 const getAiClient = (): GoogleGenAI => {
   if (!API_KEY) {
     console.error("CRITICAL: VITE_GEMINI_API_KEY is missing in .env file");
     throw new Error("API Key is missing. Please check your .env configuration.");
   }
-  // Initialize the specific Google Gen AI SDK
   return new GoogleGenAI({ apiKey: API_KEY });
 };
 
-// --- 2. MAIN SEARCH FUNCTION (Used by SearchBar) ---
+// --- MAIN SEARCH FUNCTION ---
 
 export const searchProducts = async (query: string): Promise<Product[]> => {
   try {
     const ai = getAiClient();
     
+    // Using gemini-2.0-flash for speed and stability
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash', // Using the fast, stable model
+      model: 'gemini-2.0-flash',
       contents: {
         parts: [
           { 
@@ -56,7 +54,7 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
       },
     });
 
-    // Safe JSON Parsing
+    // Robust JSON Extraction
     const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
     const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/\[\s*\{[\s\S]*\}\s*\]/);
     const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text.replace(/^```json\n?|\n?```$/g, '').trim();
@@ -73,4 +71,82 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
       retailer: p.retailer || "Unknown",
       imageUrl: p.imageUrl || "https://placehold.co/400?text=No+Image",
       link: p.link || "#",
-      specs: Array.isArray(p.specs) ?
+      // Safe check for specs array
+      specs: (p.specs && !Array.isArray(p.specs)) ? p.specs : {}
+    }));
+
+  } catch (error) {
+    console.error("Search Error:", error);
+    // Return empty array instead of crashing app
+    return [];
+  }
+};
+
+// --- ADDITIONAL FEATURES (Fixes Build Errors) ---
+
+/**
+ * Chat functionality for the ChatBot component
+ */
+export const chatWithGemini = async (history: any[], newMessage: string) => {
+  try {
+    const ai = getAiClient();
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: {
+        parts: [{ text: `User: ${newMessage}\nAI (You are a shopping assistant):` }]
+      }
+    });
+    return response.candidates?.[0]?.content?.parts?.[0]?.text || "I didn't catch that.";
+  } catch (error) {
+    console.error("Chat Error:", error);
+    return "Chat service is currently offline.";
+  }
+};
+
+/**
+ * Analyzes an image (Fixes SearchBar.tsx error)
+ */
+export const analyzeImage = async (base64Data: string, mimeType: string): Promise<string> => {
+  try {
+    const ai = getAiClient();
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: {
+        parts: [
+          { inlineData: { data: base64Data, mimeType: mimeType } },
+          { text: "Identify this product and estimate its price in India (INR). Return just the product name and price." }
+        ]
+      }
+    });
+    return response.candidates?.[0]?.content?.parts?.[0]?.text || "Could not identify image.";
+  } catch (error) {
+    console.error("Vision Error:", error);
+    return "Image analysis failed.";
+  }
+};
+
+/**
+ * Deep analysis of a product (Fixes ProductDetails.tsx error)
+ */
+export const analyzeProductDeeply = async (productName: string): Promise<string> => {
+  try {
+    const ai = getAiClient();
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: {
+        parts: [{ text: `Analyze the value for money of "${productName}" in 50 words.` }]
+      }
+    });
+    return response.candidates?.[0]?.content?.parts?.[0]?.text || "Analysis unavailable.";
+  } catch (error) {
+    console.error("Deep Analysis Error:", error);
+    return "Deep analysis unavailable.";
+  }
+};
+
+/**
+ * Placeholder for Concept Image (Prevents future crashes)
+ */
+export const generateConceptImage = async (prompt: string): Promise<string> => {
+    return "https://placehold.co/600x400?text=Concept+Image";
+};
