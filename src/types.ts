@@ -28,3 +28,11 @@ export interface GeneratedImage {
   url: string;
   prompt: string;
 }
+
+export interface FilterState {
+  retailers: string[];
+  minPrice: string;
+  maxPrice: string;
+}
+
+export type ViewMode = 'search' | 'wishlist';

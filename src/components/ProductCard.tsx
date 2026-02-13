@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { ExternalLink, ShoppingBag, Cpu, X } from 'lucide-react';
+import { ExternalLink, Cpu, X, Heart, TrendingUp } from 'lucide-react';
 import { Product } from '../types';
 import { analyzeProductDeeply } from '../services/gemini';
+import { useStore } from '../store/useStore';
+import { PriceChart } from './PriceChart';
 
 interface ProductCardProps {
   product: Product;
@@ -10,6 +12,11 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showChart, setShowChart] = useState(false);
+  
+  const { wishlist, toggleWishlist } = useStore();
+  
+  const isWishlisted = wishlist.some(p => p.id === product.id || p.name === product.name);
 
   const getRetailerColor = (retailer: string) => {
     switch (retailer.toLowerCase()) {
@@ -20,7 +27,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     }
   };
 
-  const handleDeepThink = async () => {
+  const handleDeepThink = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (analysis) {
       setAnalysis(null);
       return;
@@ -29,6 +37,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     const result = await analyzeProductDeeply(product.name);
     setAnalysis(result);
     setIsAnalyzing(false);
+  };
+
+  const handleWishlist = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleWishlist(product);
   };
 
   return (
@@ -41,6 +54,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           alt={product.name} 
           className="w-full h-full object-contain mix-blend-overlay group-hover:scale-110 transition-transform duration-700 relative z-0 opacity-80 group-hover:opacity-100" 
         />
+        
+        {/* Wishlist Button */}
+        <button 
+          onClick={handleWishlist}
+          className="absolute top-4 left-4 z-20 p-2 rounded-full bg-black/40 backdrop-blur border border-white/10 hover:bg-white/10 transition-all active:scale-95 group/heart"
+        >
+          <Heart className={`w-5 h-5 transition-colors ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-white group-hover/heart:text-red-400'}`} />
+        </button>
+
         <div className={`absolute top-4 right-4 z-20 px-3 py-1 rounded-full text-xs font-bold border backdrop-blur-md uppercase tracking-wide ${getRetailerColor(product.retailer)}`}>
           {product.retailer}
         </div>
@@ -52,12 +74,35 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           {product.name}
         </h3>
         
-        <div className="flex items-baseline gap-1 mt-auto mb-6">
-          <span className="text-sm text-white/60">{product.currency}</span>
-          <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">
-            {product.price.toLocaleString('en-IN')}
-          </span>
+        <div className="flex items-baseline justify-between mt-auto mb-6">
+          <div className="flex items-baseline gap-1">
+            <span className="text-sm text-white/60">{product.currency}</span>
+            <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">
+              {product.price.toLocaleString('en-IN')}
+            </span>
+          </div>
+          
+          <button 
+            onClick={() => setShowChart(true)}
+            className="p-2 rounded-xl bg-white/5 hover:bg-indigo-500/20 text-white/50 hover:text-indigo-300 border border-transparent hover:border-indigo-500/30 transition-all"
+            title="View Price History"
+          >
+            <TrendingUp className="w-5 h-5" />
+          </button>
         </div>
+
+        {/* Chart Modal Overlay */}
+        {showChart && (
+          <div className="absolute inset-0 z-40 bg-slate-950/95 backdrop-blur-xl p-6 animate-in fade-in zoom-in-95 duration-200">
+             <button 
+              onClick={() => setShowChart(false)}
+              className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full text-white/50 hover:text-white"
+             >
+               <X className="w-5 h-5" />
+             </button>
+             <PriceChart currentPrice={product.price} productName={product.name} />
+          </div>
+        )}
 
         {/* Analysis Result Overlay */}
         {analysis && (
