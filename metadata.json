@@ -1,0 +1,8 @@
+{
+  "name": "Prism Price",
+  "description": "Next-Gen AI-powered price comparison engine using Gemini 3 for real-time pricing, image analysis, and deep product insights.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
