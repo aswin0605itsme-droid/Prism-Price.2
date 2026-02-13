@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Camera, Loader2, History, Clock, Sparkles } from 'lucide-react';
 import { useStore } from '../store/useStore';
@@ -111,7 +110,7 @@ export const SearchBar: React.FC = () => {
               type="submit"
               className="bg-white text-indigo-900 px-6 py-3 rounded-xl font-semibold hover:scale-105 transition-all active:scale-95 flex items-center gap-2"
             >
-              {useStore.getState().isLoading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Compare'}
+              {useStore.getState().isLoading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Search Prices'}
             </button>
           </div>
         </div>
