@@ -1,10 +1,8 @@
 
 /**
- * Simulates the /api/outbound Next.js route handler.
- * In a full Next.js app, this would be a server-side route.
- * Here, we intercept the click, log the analytics event, and perform the navigation.
+ * Handles outbound clicks to retailer websites.
+ * Logs analytics and performs a safe redirect in a new tab.
  */
-
 export const trackAndRedirect = (product: { id: string; name: string; link: string; retailer: string }) => {
   console.group('🔍 Prism Tracker: Outbound Click Detected');
   console.log(`Timestamp: ${new Date().toISOString()}`);
@@ -13,10 +11,25 @@ export const trackAndRedirect = (product: { id: string; name: string; link: stri
   console.log(`Target URL: ${product.link}`);
   console.groupEnd();
 
-  // Simulate latency of an API call
-  // In a real app: await fetch('/api/analytics', { method: 'POST', body: ... })
+  if (!product.link) {
+    console.error("Tracker Error: Missing product link");
+    alert("Sorry, the link for this product is currently unavailable.");
+    return;
+  }
+
+  // Ensure the link has a protocol
+  let url = product.link.trim();
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url}`;
+  }
+
+  // Use window.open for reliable new tab behavior
+  const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
   
-  // Use a temporary anchor to force a clean new tab open which mimics a 302 redirect behavior for the user
-  const newWindow = window.open(product.link, '_blank', 'noopener,noreferrer');
-  if (newWindow) newWindow.opener = null;
+  // Fallback if popup blocker catches it (though usually safe in click handlers)
+  if (!newWindow) {
+    window.location.href = url;
+  } else {
+    newWindow.opener = null;
+  }
 };

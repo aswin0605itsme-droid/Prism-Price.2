@@ -32,33 +32,31 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `You are an expert shopping assistant. Your goal is to find the specific product "${query}" across multiple Indian retailers (Amazon.in, Flipkart, Croma, Reliance Digital) to help the user compare prices.
+      contents: `You are an expert shopping assistant. Your task is to find the Best Price for: "${query}".
 
       INSTRUCTIONS:
-      1. Search specifically for "${query}" on the web.
-      2. Find distinct listings for this product from different retailers.
-      3. Extract the PRECISE Deep Link (URL) to the specific product page. Do NOT return the retailer's homepage.
-      4. Extract the current price.
+      1. If the query is generic (e.g., "Harry Potter Books"), pick the most popular specific item (e.g., "Harry Potter Box Set: The Complete Collection") and find prices for THAT specific item.
+      2. Search across major Indian retailers: Amazon.in, Flipkart, Croma, Reliance Digital.
+      3. EXTRACT THE DIRECT PRODUCT URL (Deep Link). Do NOT return search result pages or homepages.
+      4. Ensure the price is current.
 
       OUTPUT FORMAT:
-      Return a JSON array of objects. 
+      Return a JSON array.
       
-      {
-        "id": "unique_id_from_retailer",
-        "name": "Exact Product Title found on site",
-        "price": 12345 (number),
-        "currency": "INR",
-        "retailer": "Amazon" | "Flipkart" | "Croma" | "Reliance Digital",
-        "imageUrl": "url_of_product_image",
-        "link": "https://www.amazon.in/dp/B0...", // MUST BE A DEEP LINK
-        "specs": {
-            "RAM": "8GB",
-            "Storage": "256GB" 
-            // etc
+      [
+        {
+          "id": "unique_id",
+          "name": "Full Product Title",
+          "price": 3500,
+          "currency": "INR",
+          "retailer": "Amazon",
+          "imageUrl": "https://...",
+          "link": "https://www.amazon.in/dp/...", 
+          "specs": { "Language": "English", "Format": "Paperback" }
         }
-      }
+      ]
 
-      Strictly ensure the "link" field is a direct link to the product page.`,
+      The "link" MUST be a valid, direct URL starting with https://.`,
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
@@ -86,10 +84,29 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
       },
     });
 
-    const jsonStr = response.text?.trim();
+    // Robust JSON extraction
+    const text = response.text || "";
+    // Attempt to extract JSON if it's wrapped in markdown blocks
+    const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    
+    let jsonStr = "";
+    if (jsonMatch) {
+        jsonStr = jsonMatch[1] || jsonMatch[0];
+    } else {
+        // Fallback: try to clean raw string
+        jsonStr = text.replace(/^```json\n?|\n?```$/g, '').trim();
+    }
+
     if (!jsonStr) return [];
-    const cleanedJson = jsonStr.replace(/^```json\n?|\n?```$/g, '');
-    return JSON.parse(cleanedJson) as Product[];
+    
+    const products = JSON.parse(jsonStr) as Product[];
+    
+    // Post-process to ensure valid links
+    return products.map(p => ({
+        ...p,
+        link: p.link?.startsWith('http') ? p.link : `https://${p.link}`
+    }));
+
   } catch (error) {
     console.error("Search Error:", error);
     return [];

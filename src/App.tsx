@@ -113,7 +113,7 @@ function App() {
                 Compare <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Instantly</span>
               </h1>
               <p className="text-lg text-gray-400 max-w-2xl mx-auto font-medium leading-relaxed">
-                Real-time pricing from Amazon, Flipkart, Croma, and Reliance Digital powered by Gemini 3.
+                Real-time pricing from Amazon, Flipkart, Croma, and Reliance Digital.
               </p>
             </header>
 
