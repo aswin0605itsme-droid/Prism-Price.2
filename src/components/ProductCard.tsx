@@ -1,6 +1,5 @@
-
-import React, { useState } from 'react';
-import { ExternalLink, BrainCircuit, X, Heart, TrendingUp, ShoppingBag, ShieldCheck, Sparkles, Loader2, Scale, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ExternalLink, BrainCircuit, X, Heart, TrendingUp, ShoppingBag, ShieldCheck, Sparkles, Loader2, Scale, ArrowRight, ImageOff } from 'lucide-react';
 import { Product } from '../types';
 import { analyzeProductDeeply } from '../services/gemini';
 import { useStore } from '../store/useStore';
@@ -15,11 +14,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showChart, setShowChart] = useState(false);
+  const [imageError, setImageError] = useState(false);
   
   const { wishlist, toggleWishlist, comparisonList, toggleComparison, addToRecentlyViewed } = useStore();
   
   const isWishlisted = wishlist.some(p => p.id === product.id || p.name === product.name);
   const isComparing = comparisonList.some(p => p.id === product.id);
+
+  // Reset image error state when product changes
+  useEffect(() => {
+    setImageError(false);
+  }, [product.imageUrl]);
 
   // Retailer specific styling with gradients
   const getRetailerTheme = (retailer: string) => {
@@ -89,6 +94,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       setShowChart(true);
   }
 
+  const handleImageError = () => {
+    setImageError(true);
+  };
+
   return (
     <div className={`group relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2rem] overflow-hidden transition-all duration-500 hover:-translate-y-2 flex flex-col h-full ${theme.border} ${theme.glow}`}>
       
@@ -119,12 +128,21 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
            </button>
          </div>
 
-         {/* Product Image */}
-         <img 
-           src={product.imageUrl} 
-           alt={product.name} 
-           className="w-full h-full object-contain z-10 drop-shadow-2xl group-hover:scale-110 transition-transform duration-700 ease-out" 
-         />
+         {/* Product Image with Fallback */}
+         {!imageError ? (
+            <img 
+            src={product.imageUrl} 
+            alt={product.name} 
+            onError={handleImageError}
+            className="w-full h-full object-contain z-10 drop-shadow-2xl group-hover:scale-110 transition-transform duration-700 ease-out" 
+            />
+         ) : (
+             <div className="w-full h-full flex flex-col items-center justify-center z-10 opacity-40">
+                <ImageOff className="w-12 h-12 mb-2" />
+                <span className="text-xs uppercase tracking-wider font-bold">No Image</span>
+             </div>
+         )}
+         
          
          {/* Verification Badge */}
          <div className="absolute bottom-4 left-4 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-[10px] font-bold text-white/80 uppercase tracking-wider">

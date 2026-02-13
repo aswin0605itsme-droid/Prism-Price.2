@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types";
 
-declare var process: {
+declare const process: {
   env: {
     API_KEY: string;
   };
@@ -13,11 +13,11 @@ let aiClient: GoogleGenAI | null = null;
 const getAiClient = (): GoogleGenAI | null => {
   if (aiClient) return aiClient;
   
-  // Access the API key using process.env as per guidelines
+  // Use process.env.API_KEY as per @google/genai guidelines
   const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
-    console.error("Configuration Error: API_KEY is undefined. Please check your .env file.");
+    console.error("Configuration Error: API_KEY is undefined.");
     return null;
   }
   
@@ -31,7 +31,9 @@ const getAiClient = (): GoogleGenAI | null => {
  */
 export const searchProducts = async (query: string): Promise<Product[]> => {
   const ai = getAiClient();
-  if (!ai) return [];
+  if (!ai) {
+    throw new Error("API Key missing. Please configure API_KEY in your environment.");
+  }
 
   try {
     const response = await ai.models.generateContent({
@@ -113,7 +115,7 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
 
     if (!jsonStr) {
       console.warn("Gemini returned invalid JSON structure:", text);
-      return [];
+      throw new Error("Received invalid data format from AI. Please try again.");
     }
     
     const rawProducts = JSON.parse(jsonStr);
@@ -133,9 +135,11 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
         }, {}) : {}
     }));
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Search Error:", error);
-    return [];
+    // Re-throw with user friendly message
+    if (error.message.includes("API_KEY")) throw error;
+    throw new Error("Failed to fetch product data. The AI service might be busy or the query was too complex.");
   }
 };
 
@@ -144,7 +148,7 @@ export const searchProducts = async (query: string): Promise<Product[]> => {
  */
 export const chatWithGemini = async (history: { role: string, parts: { text: string }[] }[], newMessage: string) => {
   const ai = getAiClient();
-  if (!ai) return "I'm currently offline due to a missing configuration.";
+  if (!ai) return "I'm currently offline due to a missing API Key configuration.";
 
   try {
     const chat = ai.chats.create({
@@ -167,7 +171,7 @@ export const chatWithGemini = async (history: { role: string, parts: { text: str
  */
 export const analyzeProductDeeply = async (productName: string): Promise<string> => {
   const ai = getAiClient();
-  if (!ai) return "Analysis unavailable.";
+  if (!ai) return "Analysis unavailable due to missing configuration.";
 
   try {
     const response = await ai.models.generateContent({
@@ -186,7 +190,7 @@ export const analyzeProductDeeply = async (productName: string): Promise<string>
  */
 export const analyzeImage = async (base64Data: string, mimeType: string): Promise<string> => {
   const ai = getAiClient();
-  if (!ai) return "Image analysis unavailable.";
+  if (!ai) return "Image analysis unavailable due to missing configuration.";
 
   try {
     const response = await ai.models.generateContent({
@@ -210,7 +214,7 @@ export const analyzeImage = async (base64Data: string, mimeType: string): Promis
  */
 export const generateConceptImage = async (prompt: string, aspectRatio: string): Promise<string> => {
   const ai = getAiClient();
-  if (!ai) throw new Error("Image generation unavailable");
+  if (!ai) throw new Error("Image generation unavailable due to missing configuration.");
 
   try {
     const response = await ai.models.generateContent({

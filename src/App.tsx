@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { SearchBar } from './components/SearchBar';
 import { ProductCard } from './components/ProductCard';
@@ -7,10 +6,10 @@ import { FilterBar } from './components/FilterBar';
 import { Wishlist } from './components/Wishlist';
 import { ComparisonView } from './components/ComparisonView';
 import { useStore } from './store/useStore';
-import { Zap, Tag, Heart, BarChart3, ShieldCheck, Scale, History as HistoryIcon, Flame } from 'lucide-react';
+import { Zap, Tag, Heart, BarChart3, ShieldCheck, Scale, History as HistoryIcon, Flame, AlertCircle } from 'lucide-react';
 import { Product } from './types';
 
-// Mock Trending Data for Landing Page
+// Mock Trending Data for Landing Page with reliable Placeholders
 const TRENDING_PRODUCTS: Product[] = [
   {
     id: 't1',
@@ -18,7 +17,7 @@ const TRENDING_PRODUCTS: Product[] = [
     price: 29990,
     currency: 'INR',
     retailer: 'Amazon',
-    imageUrl: 'https://m.media-amazon.com/images/I/51SKmu2G9FL._AC_UF1000,1000_QL80_.jpg',
+    imageUrl: 'https://placehold.co/600x600/1e293b/FFF?text=Sony+XM5',
     link: 'https://amazon.in',
     specs: { 'Battery': '30 Hours', 'Weight': '250g', 'Driver': '30mm', 'Connectivity': 'BT 5.2' }
   },
@@ -28,7 +27,7 @@ const TRENDING_PRODUCTS: Product[] = [
     price: 114900,
     currency: 'INR',
     retailer: 'Croma',
-    imageUrl: 'https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/mba13-midnight-select-202402?wid=904&hei=840&fmt=jpeg&qlt=90&.v=1708367688034',
+    imageUrl: 'https://placehold.co/600x600/1e293b/FFF?text=MacBook+Air+M3',
     link: 'https://croma.com',
     specs: { 'Chip': 'M3', 'Ram': '8GB', 'SSD': '256GB', 'Display': '13.6 inch' }
   },
@@ -38,14 +37,14 @@ const TRENDING_PRODUCTS: Product[] = [
     price: 129999,
     currency: 'INR',
     retailer: 'Flipkart',
-    imageUrl: 'https://images.samsung.com/is/image/samsung/p6pim/in/sm-s928bzkqins/gallery/in-galaxy-s24-s928-sm-s928bzkqins-539573281?$650_519_PNG$',
+    imageUrl: 'https://placehold.co/600x600/1e293b/FFF?text=Galaxy+S24+Ultra',
     link: 'https://flipkart.com',
     specs: { 'Camera': '200MP', 'Battery': '5000 mAh', 'Processor': 'Snapdragon 8 Gen 3', 'Pen': 'Included' }
   }
 ];
 
 function App() {
-  const { products, isLoading, loadingStatus, viewMode, setViewMode, wishlist, filters, comparisonList, recentlyViewed } = useStore();
+  const { products, isLoading, loadingStatus, viewMode, setViewMode, wishlist, filters, comparisonList, recentlyViewed, error, setError } = useStore();
 
   const filteredProducts = products.filter(product => {
     if (filters.retailers.length > 0 && !filters.retailers.includes(product.retailer)) {
@@ -103,6 +102,23 @@ function App() {
           </div>
         </div>
       </nav>
+
+      {/* Global Error Banner */}
+      {error && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 w-full max-w-lg px-4 animate-in slide-in-from-top-4">
+           <div className="bg-red-500/10 backdrop-blur-md border border-red-500/50 text-red-200 p-4 rounded-xl flex items-start gap-3 shadow-2xl">
+              <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                 <h4 className="font-bold text-sm mb-1 text-red-400">Error Occurred</h4>
+                 <p className="text-sm opacity-90">{error}</p>
+              </div>
+              <button onClick={() => setError(null)} className="p-1 hover:bg-red-500/20 rounded-lg transition-colors">
+                  <span className="sr-only">Dismiss</span>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+           </div>
+        </div>
+      )}
 
       <div className="container mx-auto px-4 py-28 relative z-10">
         

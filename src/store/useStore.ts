@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { Product, ChatMessage, FilterState, ViewMode } from '../types';
 
@@ -6,7 +5,8 @@ interface AppState {
   searchQuery: string;
   products: Product[];
   isLoading: boolean;
-  loadingStatus: string; // New State for detailed feedback
+  loadingStatus: string;
+  error: string | null; // New error state
   isThinking: boolean;
   chatMessages: ChatMessage[];
   isChatOpen: boolean;
@@ -19,7 +19,8 @@ interface AppState {
   setSearchQuery: (query: string) => void;
   setProducts: (products: Product[]) => void;
   setIsLoading: (loading: boolean) => void;
-  setLoadingStatus: (status: string) => void; // New Action
+  setLoadingStatus: (status: string) => void;
+  setError: (error: string | null) => void; // New action
   setIsThinking: (thinking: boolean) => void;
   addChatMessage: (message: ChatMessage) => void;
   toggleChat: () => void;
@@ -53,6 +54,7 @@ export const useStore = create<AppState>((set) => ({
   products: [],
   isLoading: false,
   loadingStatus: 'Initializing Search...',
+  error: null,
   isThinking: false,
   chatMessages: [{
     id: 'init',
@@ -75,6 +77,7 @@ export const useStore = create<AppState>((set) => ({
   setProducts: (products) => set({ products }),
   setIsLoading: (isLoading) => set({ isLoading }),
   setLoadingStatus: (loadingStatus) => set({ loadingStatus }),
+  setError: (error) => set({ error }),
   setIsThinking: (isThinking) => set({ isThinking }),
   addChatMessage: (message) => set((state) => ({ chatMessages: [...state.chatMessages, message] })),
   toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen })),

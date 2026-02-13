@@ -38,7 +38,7 @@ const LOADING_MESSAGES = [
 export const SearchBar: React.FC = () => {
   const [localQuery, setLocalQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
-  const { setSearchQuery, setProducts, setIsLoading, setLoadingStatus, isLoading, loadingStatus } = useStore();
+  const { setSearchQuery, setProducts, setIsLoading, setLoadingStatus, isLoading, loadingStatus, setError } = useStore();
   const { history, addToHistory } = useSearchHistory();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -62,6 +62,7 @@ export const SearchBar: React.FC = () => {
     addToHistory(query);
     
     setIsLoading(true);
+    setError(null); // Clear previous errors
     setProducts([]); 
     
     // Status message simulation
@@ -74,9 +75,13 @@ export const SearchBar: React.FC = () => {
 
     try {
         const results = await searchProducts(query);
+        if (results.length === 0) {
+            setError("No products found for this query. Try a different term.");
+        }
         setProducts(results);
-    } catch (e) {
+    } catch (e: any) {
         console.error("Search failed", e);
+        setError(e.message || "An unexpected error occurred during search.");
     } finally {
         clearInterval(statusInterval);
         setIsLoading(false);
@@ -93,6 +98,7 @@ export const SearchBar: React.FC = () => {
     if (!file) return;
 
     setIsLoading(true);
+    setError(null);
     setSearchQuery("Analyzing Image...");
     setLoadingStatus("Processing Visual Data...");
 
@@ -100,11 +106,15 @@ export const SearchBar: React.FC = () => {
     reader.onloadend = async () => {
       const base64String = reader.result?.toString().split(',')[1];
       if (base64String) {
-        const analysis = await analyzeImage(base64String, file.type);
-        setLocalQuery(analysis.slice(0, 50) + "...");
-        setLoadingStatus("Searching for products...");
-        const results = await searchProducts(analysis);
-        setProducts(results);
+        try {
+            const analysis = await analyzeImage(base64String, file.type);
+            setLocalQuery(analysis.slice(0, 50) + "...");
+            setLoadingStatus("Searching for products...");
+            const results = await searchProducts(analysis);
+            setProducts(results);
+        } catch (e: any) {
+            setError(e.message || "Failed to analyze image.");
+        }
       }
       setIsLoading(false);
     };
