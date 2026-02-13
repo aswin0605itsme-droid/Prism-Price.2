@@ -1,23 +1,17 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types";
 
-declare const process: {
-  env: {
-    API_KEY: string;
-  };
-};
-
 // Lazy initialization holder
 let aiClient: GoogleGenAI | null = null;
 
 const getAiClient = (): GoogleGenAI | null => {
   if (aiClient) return aiClient;
   
-  // Use process.env.API_KEY as per @google/genai guidelines
+  // Access the API key using process.env.API_KEY per guidelines
   const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
-    console.error("Configuration Error: API_KEY is undefined.");
+    console.error("Missing API_KEY in environment");
     return null;
   }
   
