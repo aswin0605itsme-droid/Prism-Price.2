@@ -1,9 +1,11 @@
+
 import React, { useState } from 'react';
-import { ExternalLink, Cpu, X, Heart, TrendingUp } from 'lucide-react';
+import { ExternalLink, BrainCircuit, X, Heart, TrendingUp, ShoppingBag, ShieldCheck, Sparkles, Loader2, Scale } from 'lucide-react';
 import { Product } from '../types';
 import { analyzeProductDeeply } from '../services/gemini';
 import { useStore } from '../store/useStore';
 import { PriceChart } from './PriceChart';
+import { trackAndRedirect } from '../services/tracker';
 
 interface ProductCardProps {
   product: Product;
@@ -14,18 +16,47 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showChart, setShowChart] = useState(false);
   
-  const { wishlist, toggleWishlist } = useStore();
+  const { wishlist, toggleWishlist, comparisonList, toggleComparison } = useStore();
   
   const isWishlisted = wishlist.some(p => p.id === product.id || p.name === product.name);
+  const isComparing = comparisonList.some(p => p.id === product.id);
 
-  const getRetailerColor = (retailer: string) => {
+  const getRetailerTheme = (retailer: string) => {
     switch (retailer.toLowerCase()) {
-      case 'amazon': return 'bg-yellow-500/20 text-yellow-200 border-yellow-500/30';
-      case 'flipkart': return 'bg-blue-500/20 text-blue-200 border-blue-500/30';
-      case 'croma': return 'bg-teal-500/20 text-teal-200 border-teal-500/30';
-      default: return 'bg-white/10 text-white border-white/20';
+      case 'amazon': return { 
+        bg: 'bg-amber-500/10', 
+        text: 'text-amber-400', 
+        border: 'border-amber-500/20',
+        glow: 'group-hover:shadow-amber-500/20',
+      };
+      case 'flipkart': return { 
+        bg: 'bg-blue-500/10', 
+        text: 'text-blue-400', 
+        border: 'border-blue-500/20',
+        glow: 'group-hover:shadow-blue-500/20',
+      };
+      case 'croma': return { 
+        bg: 'bg-teal-500/10', 
+        text: 'text-teal-400', 
+        border: 'border-teal-500/20',
+        glow: 'group-hover:shadow-teal-500/20',
+      };
+      case 'reliance digital': return { 
+        bg: 'bg-red-500/10', 
+        text: 'text-red-400', 
+        border: 'border-red-500/20',
+        glow: 'group-hover:shadow-red-500/20',
+      };
+      default: return { 
+        bg: 'bg-indigo-500/10', 
+        text: 'text-indigo-400', 
+        border: 'border-indigo-500/20',
+        glow: 'group-hover:shadow-indigo-500/20',
+      };
     }
   };
+
+  const theme = getRetailerTheme(product.retailer);
 
   const handleDeepThink = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -34,119 +65,167 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       return;
     }
     setIsAnalyzing(true);
-    const result = await analyzeProductDeeply(product.name);
-    setAnalysis(result);
-    setIsAnalyzing(false);
+    try {
+      const result = await analyzeProductDeeply(product.name);
+      setAnalysis(result);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
-  const handleWishlist = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    toggleWishlist(product);
+  const handleGetDeal = (e: React.MouseEvent) => {
+    e.preventDefault();
+    trackAndRedirect(product);
   };
 
   return (
-    <div className="group relative bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl overflow-hidden hover:border-indigo-500/50 transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_50px_rgba(79,_70,_229,_0.15)] flex flex-col h-full">
-      {/* Image Area */}
-      <div className="relative h-64 overflow-hidden bg-black/20 p-6 flex items-center justify-center">
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
+    <div className={`group relative bg-slate-900/40 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] overflow-hidden transition-all duration-500 hover:scale-[1.02] hover:-translate-y-2 flex flex-col h-full ${theme.glow} hover:shadow-[0_20px_80px_-15px_rgba(0,0,0,0.5)]`}>
+      {/* Glossy Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      
+      {/* Top Media Section */}
+      <div className="relative h-56 overflow-hidden bg-slate-950/20 p-8 flex items-center justify-center border-b border-white/5">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/5 via-transparent to-transparent z-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+        
         <img 
           src={product.imageUrl} 
           alt={product.name} 
-          className="w-full h-full object-contain mix-blend-overlay group-hover:scale-110 transition-transform duration-700 relative z-0 opacity-80 group-hover:opacity-100" 
+          className="w-full h-full object-contain z-10 drop-shadow-2xl group-hover:scale-110 transition-transform duration-700" 
         />
         
-        {/* Wishlist Button */}
-        <button 
-          onClick={handleWishlist}
-          className="absolute top-4 left-4 z-20 p-2 rounded-full bg-black/40 backdrop-blur border border-white/10 hover:bg-white/10 transition-all active:scale-95 group/heart"
-        >
-          <Heart className={`w-5 h-5 transition-colors ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-white group-hover/heart:text-red-400'}`} />
-        </button>
+        {/* Floating Controls */}
+        <div className="absolute top-5 right-5 z-20 flex flex-col gap-2">
+          <button 
+            onClick={(e) => { e.stopPropagation(); toggleWishlist(product); }}
+            className={`p-2.5 rounded-full backdrop-blur-md border border-white/10 transition-all active:scale-90 ${
+              isWishlisted ? 'bg-red-500/20 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'bg-black/40 hover:bg-white/10'
+            }`}
+          >
+            <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-white/60 group-hover:text-red-400'}`} />
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); toggleComparison(product); }}
+            className={`p-2.5 rounded-full backdrop-blur-md border border-white/10 transition-all active:scale-90 ${
+              isComparing ? 'bg-cyan-500/20 border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.3)]' : 'bg-black/40 hover:bg-white/10'
+            }`}
+          >
+            <Scale className={`w-4 h-4 ${isComparing ? 'fill-cyan-500 text-cyan-500' : 'text-white/60 group-hover:text-cyan-400'}`} />
+          </button>
+        </div>
 
-        <div className={`absolute top-4 right-4 z-20 px-3 py-1 rounded-full text-xs font-bold border backdrop-blur-md uppercase tracking-wide ${getRetailerColor(product.retailer)}`}>
-          {product.retailer}
+        {/* Floating AI badge */}
+        <div className="absolute top-5 left-5 z-20 flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-full text-[10px] font-black text-indigo-400 uppercase tracking-widest backdrop-blur-xl group-hover:border-indigo-500/40 transition-colors">
+          <Sparkles className="w-3 h-3 animate-pulse" />
+          AI Tracked
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-6 flex flex-col flex-grow">
-        <h3 className="text-xl font-bold text-white mb-2 line-clamp-2 leading-tight">
-          {product.name}
-        </h3>
-        
-        <div className="flex items-baseline justify-between mt-auto mb-6">
-          <div className="flex items-baseline gap-1">
-            <span className="text-sm text-white/60">{product.currency}</span>
-            <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">
-              {product.price.toLocaleString('en-IN')}
-            </span>
+      {/* Main Info Section */}
+      <div className="p-6 flex flex-col flex-grow relative z-20 space-y-4">
+        <div>
+          <div className="flex items-center gap-2 text-[10px] text-white/30 font-bold uppercase tracking-[0.2em] mb-2">
+            <ShieldCheck className="w-3 h-3 text-indigo-500" /> Verified Deal
           </div>
-          
+          <h3 className="text-lg font-bold text-white line-clamp-2 leading-snug tracking-tight min-h-[3rem] group-hover:text-indigo-200 transition-colors">
+            {product.name}
+          </h3>
+        </div>
+
+        {/* Integrated Footer (Retailer + Price) */}
+        <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between group-hover:bg-white/[0.08] transition-colors">
+          <div className="flex flex-col">
+            <div className={`flex items-center gap-2 px-2.5 py-1 rounded-lg text-[10px] font-black border backdrop-blur-sm uppercase tracking-widest mb-2 w-fit ${theme.bg} ${theme.text} ${theme.border}`}>
+              <ShoppingBag className="w-3 h-3" />
+              {product.retailer}
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xs text-indigo-400 font-black">₹</span>
+              <span className="text-2xl font-black text-white tracking-tighter">
+                {product.price.toLocaleString('en-IN')}
+              </span>
+            </div>
+          </div>
+
           <button 
             onClick={() => setShowChart(true)}
-            className="p-2 rounded-xl bg-white/5 hover:bg-indigo-500/20 text-white/50 hover:text-indigo-300 border border-transparent hover:border-indigo-500/30 transition-all"
-            title="View Price History"
+            className="p-3 rounded-xl bg-slate-950/40 hover:bg-indigo-500/20 text-white/30 hover:text-indigo-400 border border-white/5 hover:border-indigo-500/30 transition-all shadow-xl"
+            title="Price History"
           >
             <TrendingUp className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Chart Modal Overlay */}
-        {showChart && (
-          <div className="absolute inset-0 z-40 bg-slate-950/95 backdrop-blur-xl p-6 animate-in fade-in zoom-in-95 duration-200">
-             <button 
-              onClick={() => setShowChart(false)}
-              className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full text-white/50 hover:text-white"
-             >
-               <X className="w-5 h-5" />
-             </button>
-             <PriceChart currentPrice={product.price} productName={product.name} />
-          </div>
-        )}
-
-        {/* Analysis Result Overlay */}
-        {analysis && (
-          <div className="absolute inset-0 bg-slate-900/95 z-30 p-6 overflow-y-auto backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4">
-             <div className="flex justify-between items-center mb-4">
-               <h4 className="text-indigo-400 font-bold flex items-center gap-2">
-                 <Cpu className="w-4 h-4" /> AI Verdict
-               </h4>
-               <button onClick={() => setAnalysis(null)} className="p-1 hover:bg-white/10 rounded-full">
-                 <X className="w-5 h-5 text-white" />
-               </button>
-             </div>
-             <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line font-light">
-               {analysis}
-             </p>
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="grid grid-cols-2 gap-3 mt-auto">
+        {/* Action Buttons */}
+        <div className="grid grid-cols-2 gap-3 pt-2">
           <button 
             onClick={handleDeepThink}
             disabled={isAnalyzing}
-            className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 text-sm font-medium transition-all border border-white/5 hover:border-white/20"
+            className={`flex items-center justify-center gap-2 py-3 px-2 rounded-xl border font-bold text-[10px] uppercase tracking-widest transition-all relative overflow-hidden ${
+              isAnalyzing 
+                ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-300' 
+                : 'bg-white/5 hover:bg-indigo-500/10 border-white/10 hover:border-indigo-500/30 text-white/70'
+            }`}
           >
             {isAnalyzing ? (
-              <span className="animate-pulse">Thinking...</span>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <>
-                <Cpu className="w-4 h-4" /> Analyze
+                <BrainCircuit className="w-3.5 h-3.5 text-indigo-400" />
+                Deep Think
               </>
             )}
           </button>
           
           <a 
             href={product.link} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold shadow-lg shadow-indigo-500/25 transition-all hover:shadow-indigo-500/40"
+            onClick={handleGetDeal}
+            className="flex items-center justify-center gap-2 py-3 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black shadow-lg hover:shadow-indigo-500/40 transition-all hover:-translate-y-0.5 uppercase tracking-widest cursor-pointer"
           >
-            Buy Now <ExternalLink className="w-4 h-4" />
+            Get Deal <ExternalLink className="w-3.5 h-3.5" />
           </a>
         </div>
       </div>
+
+      {/* Overlays */}
+      {showChart && (
+        <div className="absolute inset-0 z-40 bg-slate-950/98 backdrop-blur-3xl p-8 animate-in fade-in zoom-in-95 duration-500">
+           <div className="flex justify-between items-center mb-6">
+             <div className="text-indigo-400 font-black text-xs uppercase tracking-widest flex items-center gap-2">
+               <TrendingUp className="w-4 h-4" /> Market Volatility
+             </div>
+             <button onClick={() => setShowChart(false)} className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white/60">
+               <X className="w-5 h-5" />
+             </button>
+           </div>
+           <PriceChart currentPrice={product.price} productName={product.name} />
+        </div>
+      )}
+
+      {analysis && (
+        <div className="absolute inset-0 bg-indigo-950/98 z-50 p-8 overflow-y-auto backdrop-blur-3xl animate-in slide-in-from-bottom-8 duration-700">
+           <div className="flex justify-between items-center mb-6">
+             <div className="flex items-center gap-3">
+               <Sparkles className="w-5 h-5 text-indigo-400" />
+               <h4 className="text-indigo-300 font-black text-xs uppercase tracking-[0.2em]">AI Intelligence Verdict</h4>
+             </div>
+             <button onClick={() => setAnalysis(null)} className="p-2 bg-white/10 rounded-full">
+               <X className="w-5 h-5 text-white/60" />
+             </button>
+           </div>
+           <div className="bg-white/5 border border-white/10 rounded-2xl p-5 shadow-2xl">
+              <p className="text-white/90 leading-relaxed text-sm font-medium italic">
+                "{analysis}"
+              </p>
+           </div>
+           <div className="mt-6 flex items-center gap-3 opacity-40">
+              <div className="h-px flex-1 bg-white/20" />
+              <p className="text-[10px] font-black uppercase tracking-widest">Prism Intelligence Engine v3.1</p>
+              <div className="h-px flex-1 bg-white/20" />
+           </div>
+        </div>
+      )}
     </div>
   );
 };

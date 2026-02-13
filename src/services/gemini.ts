@@ -1,125 +1,164 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
-import { Product, AspectRatio } from "../types";
 
-// Initialize Gemini Client using the VITE_ prefixed env variable as per Vite standards
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-const genAI = new GoogleGenerativeAI(apiKey);
+import { GoogleGenAI, Type } from "@google/genai";
+import { Product } from "../types";
 
-// Helper function to get model instance
-export const getGeminiModel = (modelName: string = "gemini-1.5-flash") => {
-  return genAI.getGenerativeModel({ model: modelName });
-};
+// Initialize Gemini Client using the mandatory process.env.API_KEY
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-// 1. Search Products (Gemini 1.5 Flash)
+/**
+ * Searches for products using Gemini 3 Flash with Google Search Grounding.
+ * Actively browses for current real-world prices.
+ */
 export const searchProducts = async (query: string): Promise<Product[]> => {
   try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      generationConfig: {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Perform a real-time web search for the latest prices of "${query}" across major Indian electronics retailers: Amazon.in, Flipkart, Croma, and Reliance Digital. 
+      Return a JSON array of specific, currently available products.
+      
+      CRITICAL: Include a "specs" object with 3-4 key technical specifications (e.g., RAM, Storage, Battery, Screen Size) for comparison.
+      
+      Format:
+      {
+        "id": "unique_string",
+        "name": "Full product name including specs",
+        "price": number,
+        "currency": "INR",
+        "retailer": "Amazon" | "Flipkart" | "Croma" | "Reliance Digital",
+        "imageUrl": "valid_image_url",
+        "link": "direct_product_page_url",
+        "specs": {
+            "key": "value"
+        }
+      }
+      If exact prices vary, provide the most current one found.`,
+      config: {
+        tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
         responseSchema: {
-          type: SchemaType.ARRAY,
+          type: Type.ARRAY,
           items: {
-            type: SchemaType.OBJECT,
+            type: Type.OBJECT,
             properties: {
-              id: { type: SchemaType.STRING },
-              name: { type: SchemaType.STRING },
-              price: { type: SchemaType.NUMBER },
-              currency: { type: SchemaType.STRING },
-              retailer: { type: SchemaType.STRING },
-              imageUrl: { type: SchemaType.STRING },
-              link: { type: SchemaType.STRING },
+              id: { type: Type.STRING },
+              name: { type: Type.STRING },
+              price: { type: Type.NUMBER },
+              currency: { type: Type.STRING },
+              retailer: { type: Type.STRING },
+              imageUrl: { type: Type.STRING },
+              link: { type: Type.STRING },
+              specs: { 
+                type: Type.OBJECT,
+                properties: {}, // Allow any key
+                description: "Key-value pairs of technical specifications"
+              }
             },
-            required: ["name", "price", "retailer"],
+            required: ["name", "price", "retailer", "link", "imageUrl"],
           },
         },
       },
     });
 
-    const prompt = `Find current prices for "${query}" from major Indian retailers like Amazon.in, Flipkart, Croma, and Reliance Digital. 
-    Return a JSON array of 4-6 distinct products. 
-    For each product, strictly allow "Amazon", "Flipkart", "Croma", "Reliance Digital" as retailers.
-    Include a realistic price in INR (number only), a product name, and a direct purchase link if found (or a search link).
-    Use placeholder image URLs from https://picsum.photos/400/400 if specific ones aren't available.`;
-
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
-
-    if (responseText) {
-      return JSON.parse(responseText) as Product[];
-    }
-    return [];
+    const jsonStr = response.text.trim();
+    const cleanedJson = jsonStr.replace(/^```json\n?|\n?```$/g, '');
+    return JSON.parse(cleanedJson) as Product[];
   } catch (error) {
     console.error("Search Error:", error);
     return [];
   }
 };
 
-// 2. Chat with Gemini (Gemini 1.5 Pro)
+/**
+ * Generates a chatbot response using Gemini 3 Pro.
+ */
 export const chatWithGemini = async (history: { role: string, parts: { text: string }[] }[], newMessage: string) => {
   try {
-    const model = getGeminiModel("gemini-1.5-pro");
-    
-    // Filter history to ensure valid roles (user/model) and correct structure
-    const validHistory = history
-      .filter(h => h.role === 'user' || h.role === 'model')
-      .map(h => ({
-        role: h.role as "user" | "model",
-        parts: h.parts
-      }));
-
-    const chat = model.startChat({
-      history: validHistory,
+    const chat = ai.chats.create({
+      model: 'gemini-3-pro-preview',
+      config: {
+        systemInstruction: "You are Prism Assistant, a specialist in price tracking and gadget advice. Help users find the best value for their money."
+      }
     });
     
-    const result = await chat.sendMessage(newMessage);
-    return result.response.text();
+    const response = await chat.sendMessage({ message: newMessage });
+    return response.text;
   } catch (error) {
     console.error("Chat Error:", error);
-    return "I'm having trouble connecting right now.";
+    return "I'm having a bit of trouble connecting right now.";
   }
 };
 
-// 3. Deep Analysis (Gemini 1.5 Pro)
+/**
+ * Provides a deep technical analysis using Gemini 3 Pro.
+ */
 export const analyzeProductDeeply = async (productName: string): Promise<string> => {
   try {
-    const model = getGeminiModel("gemini-1.5-pro");
-    const prompt = `Provide a deep technical analysis and "should you buy" verdict for: ${productName}. 
-      Compare it with its top 2 competitors. Be critical and concise.`;
-    
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    const response = await ai.models.generateContent({
+      model: "gemini-3-pro-preview",
+      contents: `Provide a detailed value-for-money analysis for "${productName}". Compare its current price against its performance and competitors.`,
+    });
+    return response.text;
   } catch (error) {
-    console.error("Analysis Error:", error);
-    return "Analysis unavailable.";
+    console.error("Deep Analysis Error:", error);
+    return "Deep analysis is currently unavailable.";
   }
 };
 
-// 4. Generate Product Concept (Stub - standard SDK doesn't support image gen yet)
-export const generateConceptImage = async (prompt: string, aspectRatio: AspectRatio): Promise<string | null> => {
-  console.log("Image generation requested:", prompt, aspectRatio);
-  // Returning null as gemini-1.5-flash does not support image generation via this SDK method
-  return null;
-};
-
-// 5. Analyze Uploaded Image (Gemini 1.5 Flash Vision)
+/**
+ * Analyzes an uploaded image using Gemini 3 Pro.
+ */
 export const analyzeImage = async (base64Data: string, mimeType: string): Promise<string> => {
   try {
-    const model = getGeminiModel("gemini-1.5-flash");
-    
-    const result = await model.generateContent([
-      "Identify this product and estimate its price in INR. Return the name and price.",
-      {
-        inlineData: {
-          data: base64Data,
-          mimeType: mimeType
-        }
-      }
-    ]);
-    
-    return result.response.text();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: {
+        parts: [
+          { inlineData: { data: base64Data, mimeType } },
+          { text: "Identify this exact product and its estimated current price in INR. Give me a name I can search for." }
+        ]
+      },
+    });
+    return response.text;
   } catch (error) {
     console.error("Vision Error:", error);
-    return "Error analyzing image.";
+    return "I couldn't identify the product.";
+  }
+};
+
+/**
+ * Generates a concept image using Gemini 2.5 Flash Image.
+ * Following guidelines for nano banana series image generation.
+ */
+export const generateConceptImage = async (prompt: string, aspectRatio: string): Promise<string> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [
+          {
+            text: prompt,
+          },
+        ],
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: aspectRatio as any,
+        },
+      },
+    });
+
+    // Iterate through all parts to find the image part
+    if (response.candidates && response.candidates[0].content.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData) {
+          const base64EncodeString: string = part.inlineData.data;
+          return `data:${part.inlineData.mimeType};base64,${base64EncodeString}`;
+        }
+      }
+    }
+    throw new Error("No image data returned from model");
+  } catch (error) {
+    console.error("Image Generation Error:", error);
+    throw error;
   }
 };

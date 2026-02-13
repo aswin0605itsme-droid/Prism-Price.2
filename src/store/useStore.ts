@@ -1,5 +1,6 @@
+
 import { create } from 'zustand';
-import { Product, ChatMessage, GeneratedImage, FilterState, ViewMode } from '../types';
+import { Product, ChatMessage, FilterState, ViewMode } from '../types';
 
 interface AppState {
   searchQuery: string;
@@ -7,9 +8,9 @@ interface AppState {
   isLoading: boolean;
   isThinking: boolean;
   chatMessages: ChatMessage[];
-  generatedImages: GeneratedImage[];
   isChatOpen: boolean;
   wishlist: Product[];
+  comparisonList: Product[];
   viewMode: ViewMode;
   filters: FilterState;
   
@@ -18,15 +19,14 @@ interface AppState {
   setIsLoading: (loading: boolean) => void;
   setIsThinking: (thinking: boolean) => void;
   addChatMessage: (message: ChatMessage) => void;
-  addGeneratedImage: (image: GeneratedImage) => void;
   toggleChat: () => void;
   toggleWishlist: (product: Product) => void;
+  toggleComparison: (product: Product) => void;
   setViewMode: (mode: ViewMode) => void;
   setFilters: (filters: Partial<FilterState>) => void;
   resetFilters: () => void;
 }
 
-// Helper to save to localStorage
 const saveWishlist = (wishlist: Product[]) => {
   try {
     localStorage.setItem('prism_wishlist', JSON.stringify(wishlist));
@@ -35,7 +35,6 @@ const saveWishlist = (wishlist: Product[]) => {
   }
 };
 
-// Helper to load from localStorage
 const loadWishlist = (): Product[] => {
   try {
     const saved = localStorage.getItem('prism_wishlist');
@@ -56,9 +55,9 @@ export const useStore = create<AppState>((set) => ({
     text: 'Hello! I am Prism AI. Ask me anything about tech products or price trends.',
     timestamp: Date.now()
   }],
-  generatedImages: [],
   isChatOpen: false,
   wishlist: loadWishlist(),
+  comparisonList: [], // New Comparison State
   viewMode: 'search',
   filters: {
     retailers: [],
@@ -71,11 +70,10 @@ export const useStore = create<AppState>((set) => ({
   setIsLoading: (isLoading) => set({ isLoading }),
   setIsThinking: (isThinking) => set({ isThinking }),
   addChatMessage: (message) => set((state) => ({ chatMessages: [...state.chatMessages, message] })),
-  addGeneratedImage: (image) => set((state) => ({ generatedImages: [image, ...state.generatedImages] })),
   toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen })),
   
   toggleWishlist: (product) => set((state) => {
-    const exists = state.wishlist.some((p) => p.id === product.id || p.name === product.name); // basic dupe check
+    const exists = state.wishlist.some((p) => p.id === product.id || p.name === product.name);
     let newWishlist;
     if (exists) {
       newWishlist = state.wishlist.filter((p) => p.id !== product.id && p.name !== product.name);
@@ -84,6 +82,19 @@ export const useStore = create<AppState>((set) => ({
     }
     saveWishlist(newWishlist);
     return { wishlist: newWishlist };
+  }),
+
+  // Toggle Comparison Logic (Max 4 items)
+  toggleComparison: (product) => set((state) => {
+    const exists = state.comparisonList.some((p) => p.id === product.id);
+    if (exists) {
+      return { comparisonList: state.comparisonList.filter((p) => p.id !== product.id) };
+    }
+    if (state.comparisonList.length >= 3) {
+      // Optional: Add a toast notification here in a real app
+      return state; 
+    }
+    return { comparisonList: [...state.comparisonList, product] };
   }),
 
   setViewMode: (viewMode) => set({ viewMode }),

@@ -1,3 +1,4 @@
+
 export interface Product {
   id: string;
   name: string;
@@ -7,6 +8,8 @@ export interface Product {
   imageUrl: string;
   link: string;
   description?: string;
+  // Dynamic specs for comparison (e.g., { "RAM": "8GB", "Battery": "5000mAh" })
+  specs?: Record<string, string | number>; 
 }
 
 export interface ChatMessage {
@@ -16,23 +19,19 @@ export interface ChatMessage {
   timestamp: number;
 }
 
-export enum AspectRatio {
-  SQUARE = '1:1',
-  PORTRAIT = '3:4',
-  LANDSCAPE = '16:9',
-  WIDE = '21:9',
-  ULTRAWIDE = '4:3'
-}
-
-export interface GeneratedImage {
-  url: string;
-  prompt: string;
-}
-
 export interface FilterState {
   retailers: string[];
   minPrice: string;
   maxPrice: string;
 }
 
-export type ViewMode = 'search' | 'wishlist';
+export type ViewMode = 'search' | 'wishlist' | 'compare';
+
+// AspectRatio enum for Gemini image generation models
+export enum AspectRatio {
+  SQUARE = '1:1',
+  PORTRAIT_3_4 = '3:4',
+  LANDSCAPE_4_3 = '4:3',
+  PORTRAIT_9_16 = '9:16',
+  LANDSCAPE_16_9 = '16:9',
+}
