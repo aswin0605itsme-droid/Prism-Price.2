@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ExternalLink, BrainCircuit, X, Heart, TrendingUp, ShoppingBag, ShieldCheck, Sparkles, Loader2, Scale } from 'lucide-react';
+import { ExternalLink, BrainCircuit, X, Heart, TrendingUp, ShoppingBag, ShieldCheck, Sparkles, Loader2, Scale, ArrowRight } from 'lucide-react';
 import { Product } from '../types';
 import { analyzeProductDeeply } from '../services/gemini';
 import { useStore } from '../store/useStore';
@@ -21,37 +21,38 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const isWishlisted = wishlist.some(p => p.id === product.id || p.name === product.name);
   const isComparing = comparisonList.some(p => p.id === product.id);
 
+  // Retailer specific styling with gradients
   const getRetailerTheme = (retailer: string) => {
     switch (retailer.toLowerCase()) {
       case 'amazon': return { 
-        bg: 'bg-amber-500/10', 
-        text: 'text-amber-400', 
-        border: 'border-amber-500/20',
-        glow: 'group-hover:shadow-amber-500/20',
+        bg: 'from-amber-500/10 to-transparent',
+        badge: 'bg-amber-500/20 text-amber-400 border-amber-500/20',
+        border: 'group-hover:border-amber-500/30',
+        glow: 'group-hover:shadow-[0_0_30px_rgba(245,158,11,0.15)]',
       };
       case 'flipkart': return { 
-        bg: 'bg-blue-500/10', 
-        text: 'text-blue-400', 
-        border: 'border-blue-500/20',
-        glow: 'group-hover:shadow-blue-500/20',
+        bg: 'from-blue-500/10 to-transparent',
+        badge: 'bg-blue-500/20 text-blue-400 border-blue-500/20',
+        border: 'group-hover:border-blue-500/30',
+        glow: 'group-hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]',
       };
       case 'croma': return { 
-        bg: 'bg-teal-500/10', 
-        text: 'text-teal-400', 
-        border: 'border-teal-500/20',
-        glow: 'group-hover:shadow-teal-500/20',
+        bg: 'from-teal-500/10 to-transparent',
+        badge: 'bg-teal-500/20 text-teal-400 border-teal-500/20',
+        border: 'group-hover:border-teal-500/30',
+        glow: 'group-hover:shadow-[0_0_30px_rgba(20,184,166,0.15)]',
       };
       case 'reliance digital': return { 
-        bg: 'bg-red-500/10', 
-        text: 'text-red-400', 
-        border: 'border-red-500/20',
-        glow: 'group-hover:shadow-red-500/20',
+        bg: 'from-red-500/10 to-transparent',
+        badge: 'bg-red-500/20 text-red-400 border-red-500/20',
+        border: 'group-hover:border-red-500/30',
+        glow: 'group-hover:shadow-[0_0_30px_rgba(239,68,68,0.15)]',
       };
       default: return { 
-        bg: 'bg-indigo-500/10', 
-        text: 'text-indigo-400', 
-        border: 'border-indigo-500/20',
-        glow: 'group-hover:shadow-indigo-500/20',
+        bg: 'from-indigo-500/10 to-transparent',
+        badge: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/20',
+        border: 'group-hover:border-indigo-500/30',
+        glow: 'group-hover:shadow-[0_0_30px_rgba(99,102,241,0.15)]',
       };
     }
   };
@@ -78,159 +79,154 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   const handleGetDeal = (e: React.MouseEvent) => {
     e.preventDefault();
-    addToRecentlyViewed(product); // Track Interaction
+    addToRecentlyViewed(product);
     trackAndRedirect(product);
   };
 
   const handleShowChart = (e: React.MouseEvent) => {
       e.stopPropagation();
-      addToRecentlyViewed(product); // Track Interaction
+      addToRecentlyViewed(product);
       setShowChart(true);
   }
 
   return (
-    <div className={`group relative bg-slate-900/40 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] overflow-hidden transition-all duration-500 hover:scale-[1.02] hover:-translate-y-2 flex flex-col h-full ${theme.glow} hover:shadow-[0_20px_80px_-15px_rgba(0,0,0,0.5)]`}>
-      {/* Glossy Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+    <div className={`group relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2rem] overflow-hidden transition-all duration-500 hover:-translate-y-2 flex flex-col h-full ${theme.border} ${theme.glow}`}>
       
+      {/* Background Gradient */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${theme.bg} opacity-50 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
+
       {/* Top Media Section */}
-      <div className="relative h-56 overflow-hidden bg-slate-950/20 p-8 flex items-center justify-center border-b border-white/5">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/5 via-transparent to-transparent z-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+      <div className="relative h-60 p-6 flex items-center justify-center overflow-hidden">
+         {/* Floating Actions */}
+         <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 translate-x-10 group-hover:translate-x-0 transition-transform duration-300">
+           <button 
+             onClick={(e) => { e.stopPropagation(); toggleWishlist(product); }}
+             className={`p-2 rounded-full backdrop-blur-md border border-white/10 transition-all hover:scale-110 ${
+               isWishlisted ? 'bg-red-500/80 text-white shadow-red-500/30 shadow-lg' : 'bg-black/30 text-white/70 hover:bg-white/10 hover:text-white'
+             }`}
+             title="Add to Wishlist"
+           >
+             <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-current' : ''}`} />
+           </button>
+           <button 
+             onClick={(e) => { e.stopPropagation(); toggleComparison(product); }}
+             className={`p-2 rounded-full backdrop-blur-md border border-white/10 transition-all hover:scale-110 ${
+               isComparing ? 'bg-cyan-500/80 text-white shadow-cyan-500/30 shadow-lg' : 'bg-black/30 text-white/70 hover:bg-white/10 hover:text-white'
+             }`}
+             title="Compare"
+           >
+             <Scale className="w-4 h-4" />
+           </button>
+         </div>
+
+         {/* Product Image */}
+         <img 
+           src={product.imageUrl} 
+           alt={product.name} 
+           className="w-full h-full object-contain z-10 drop-shadow-2xl group-hover:scale-110 transition-transform duration-700 ease-out" 
+         />
+         
+         {/* Verification Badge */}
+         <div className="absolute bottom-4 left-4 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-[10px] font-bold text-white/80 uppercase tracking-wider">
+            <ShieldCheck className="w-3 h-3 text-emerald-400" />
+            Verified
+         </div>
+      </div>
+
+      {/* Content Section */}
+      <div className="p-6 flex flex-col flex-grow relative z-10 bg-gradient-to-t from-slate-950/80 to-transparent">
         
-        <img 
-          src={product.imageUrl} 
-          alt={product.name} 
-          className="w-full h-full object-contain z-10 drop-shadow-2xl group-hover:scale-110 transition-transform duration-700" 
-        />
-        
-        {/* Floating Controls */}
-        <div className="absolute top-5 right-5 z-20 flex flex-col gap-2">
-          <button 
-            onClick={(e) => { e.stopPropagation(); toggleWishlist(product); }}
-            className={`p-2.5 rounded-full backdrop-blur-md border border-white/10 transition-all active:scale-90 ${
-              isWishlisted ? 'bg-red-500/20 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'bg-black/40 hover:bg-white/10'
-            }`}
-          >
-            <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-white/60 group-hover:text-red-400'}`} />
-          </button>
-          <button 
-            onClick={(e) => { e.stopPropagation(); toggleComparison(product); }}
-            className={`p-2.5 rounded-full backdrop-blur-md border border-white/10 transition-all active:scale-90 ${
-              isComparing ? 'bg-cyan-500/20 border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.3)]' : 'bg-black/40 hover:bg-white/10'
-            }`}
-          >
-            <Scale className={`w-4 h-4 ${isComparing ? 'fill-cyan-500 text-cyan-500' : 'text-white/60 group-hover:text-cyan-400'}`} />
-          </button>
+        {/* Retailer & Title */}
+        <div className="mb-4">
+           <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest mb-3 border backdrop-blur-sm ${theme.badge}`}>
+             <ShoppingBag className="w-3 h-3" />
+             {product.retailer}
+           </div>
+           <h3 className="text-lg font-bold text-white leading-snug line-clamp-2 group-hover:text-indigo-200 transition-colors min-h-[3.5rem]">
+             {product.name}
+           </h3>
         </div>
 
-        {/* Floating AI badge */}
-        <div className="absolute top-5 left-5 z-20 flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-full text-[10px] font-black text-indigo-400 uppercase tracking-widest backdrop-blur-xl group-hover:border-indigo-500/40 transition-colors">
-          <Sparkles className="w-3 h-3 animate-pulse" />
-          AI Tracked
+        {/* Price Section */}
+        <div className="flex items-end justify-between mb-6 pb-6 border-b border-white/5">
+           <div className="flex flex-col">
+              <span className="text-xs text-white/40 font-medium mb-0.5">Current Price</span>
+              <div className="flex items-baseline gap-1">
+                 <span className="text-sm font-bold text-indigo-400">₹</span>
+                 <span className="text-3xl font-black text-white tracking-tight">{product.price.toLocaleString('en-IN')}</span>
+              </div>
+           </div>
+           <button 
+             onClick={handleShowChart}
+             className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-indigo-400 transition-colors"
+             title="View Price History"
+           >
+             <TrendingUp className="w-5 h-5" />
+           </button>
+        </div>
+
+        {/* Buttons */}
+        <div className="mt-auto grid grid-cols-[1fr_auto] gap-3">
+           <a 
+             href={product.link}
+             onClick={handleGetDeal}
+             className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-white text-slate-950 font-bold text-sm shadow-xl hover:shadow-indigo-500/20 hover:scale-[1.02] hover:bg-indigo-50 transition-all group/btn"
+           >
+             Get Deal 
+             <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+           </a>
+
+           <button 
+             onClick={handleDeepThink}
+             disabled={isAnalyzing}
+             className={`flex items-center justify-center p-3.5 rounded-xl border transition-all ${
+               isAnalyzing 
+                 ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300'
+                 : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-indigo-500/50 text-white/60 hover:text-indigo-400'
+             }`}
+             title="AI Deep Analysis"
+           >
+             {isAnalyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <BrainCircuit className="w-5 h-5" />}
+           </button>
         </div>
       </div>
 
-      {/* Main Info Section */}
-      <div className="p-6 flex flex-col flex-grow relative z-20 space-y-4">
-        <div>
-          <div className="flex items-center gap-2 text-[10px] text-white/30 font-bold uppercase tracking-[0.2em] mb-2">
-            <ShieldCheck className="w-3 h-3 text-indigo-500" /> Verified Deal
-          </div>
-          <h3 className="text-lg font-bold text-white line-clamp-2 leading-snug tracking-tight min-h-[3rem] group-hover:text-indigo-200 transition-colors">
-            {product.name}
-          </h3>
-        </div>
-
-        {/* Integrated Footer (Retailer + Price) */}
-        <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between group-hover:bg-white/[0.08] transition-colors">
-          <div className="flex flex-col">
-            <div className={`flex items-center gap-2 px-2.5 py-1 rounded-lg text-[10px] font-black border backdrop-blur-sm uppercase tracking-widest mb-2 w-fit ${theme.bg} ${theme.text} ${theme.border}`}>
-              <ShoppingBag className="w-3 h-3" />
-              {product.retailer}
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xs text-indigo-400 font-black">₹</span>
-              <span className="text-2xl font-black text-white tracking-tighter">
-                {product.price.toLocaleString('en-IN')}
-              </span>
-            </div>
-          </div>
-
-          <button 
-            onClick={handleShowChart}
-            className="p-3 rounded-xl bg-slate-950/40 hover:bg-indigo-500/20 text-white/30 hover:text-indigo-400 border border-white/5 hover:border-indigo-500/30 transition-all shadow-xl"
-            title="Price History"
-          >
-            <TrendingUp className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-3 pt-2">
-          <button 
-            onClick={handleDeepThink}
-            disabled={isAnalyzing}
-            className={`flex items-center justify-center gap-2 py-3 px-2 rounded-xl border font-bold text-[10px] uppercase tracking-widest transition-all relative overflow-hidden ${
-              isAnalyzing 
-                ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-300' 
-                : 'bg-white/5 hover:bg-indigo-500/10 border-white/10 hover:border-indigo-500/30 text-white/70'
-            }`}
-          >
-            {isAnalyzing ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <>
-                <BrainCircuit className="w-3.5 h-3.5 text-indigo-400" />
-                Deep Think
-              </>
-            )}
-          </button>
-          
-          <a 
-            href={product.link} 
-            onClick={handleGetDeal}
-            className="flex items-center justify-center gap-2 py-3 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black shadow-lg hover:shadow-indigo-500/40 transition-all hover:-translate-y-0.5 uppercase tracking-widest cursor-pointer"
-          >
-            Get Deal <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-        </div>
-      </div>
-
-      {/* Overlays */}
+      {/* Overlays (Chart & Analysis) */}
       {showChart && (
-        <div className="absolute inset-0 z-40 bg-slate-950/98 backdrop-blur-3xl p-8 animate-in fade-in zoom-in-95 duration-500">
-           <div className="flex justify-between items-center mb-6">
-             <div className="text-indigo-400 font-black text-xs uppercase tracking-widest flex items-center gap-2">
-               <TrendingUp className="w-4 h-4" /> Market Volatility
-             </div>
-             <button onClick={() => setShowChart(false)} className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white/60">
-               <X className="w-5 h-5" />
+        <div className="absolute inset-0 z-40 bg-slate-950/98 backdrop-blur-2xl p-6 animate-in fade-in zoom-in-95 duration-300 flex flex-col">
+           <div className="flex justify-between items-center mb-4">
+             <span className="text-xs font-black uppercase tracking-widest text-white/40">Price History</span>
+             <button onClick={() => setShowChart(false)} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors">
+               <X className="w-4 h-4 text-white" />
              </button>
            </div>
-           <PriceChart currentPrice={product.price} productName={product.name} />
+           <div className="flex-grow">
+              <PriceChart currentPrice={product.price} productName={product.name} />
+           </div>
         </div>
       )}
 
       {analysis && (
-        <div className="absolute inset-0 bg-indigo-950/98 z-50 p-8 overflow-y-auto backdrop-blur-3xl animate-in slide-in-from-bottom-8 duration-700">
-           <div className="flex justify-between items-center mb-6">
-             <div className="flex items-center gap-3">
-               <Sparkles className="w-5 h-5 text-indigo-400" />
-               <h4 className="text-indigo-300 font-black text-xs uppercase tracking-[0.2em]">AI Intelligence Verdict</h4>
+        <div className="absolute inset-0 z-50 bg-indigo-950/95 backdrop-blur-xl p-6 overflow-y-auto animate-in slide-in-from-bottom-4 duration-500">
+           <div className="flex justify-between items-start mb-6">
+             <div className="flex items-center gap-2 text-indigo-300">
+               <Sparkles className="w-5 h-5" />
+               <span className="font-bold text-sm uppercase tracking-wider">AI Verdict</span>
              </div>
-             <button onClick={() => setAnalysis(null)} className="p-2 bg-white/10 rounded-full">
-               <X className="w-5 h-5 text-white/60" />
+             <button onClick={() => setAnalysis(null)} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors">
+               <X className="w-4 h-4 text-white" />
              </button>
            </div>
-           <div className="bg-white/5 border border-white/10 rounded-2xl p-5 shadow-2xl">
-              <p className="text-white/90 leading-relaxed text-sm font-medium italic">
-                "{analysis}"
-              </p>
+           
+           <div className="prose prose-invert prose-sm">
+             <p className="text-white/90 font-medium leading-relaxed italic border-l-2 border-indigo-500 pl-4">
+               "{analysis}"
+             </p>
            </div>
-           <div className="mt-6 flex items-center gap-3 opacity-40">
-              <div className="h-px flex-1 bg-white/20" />
-              <p className="text-[10px] font-black uppercase tracking-widest">Prism Intelligence Engine v3.1</p>
-              <div className="h-px flex-1 bg-white/20" />
+           
+           <div className="mt-8 pt-4 border-t border-white/10 flex justify-between items-center text-[10px] text-white/30 font-mono uppercase">
+             <span>Gemini 3 Pro Analysis</span>
+             <span>Prism Intelligence</span>
            </div>
         </div>
       )}

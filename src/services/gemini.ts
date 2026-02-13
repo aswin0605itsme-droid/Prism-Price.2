@@ -1,8 +1,6 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types";
-
-// Declare process to ensure TypeScript compatibility as we must use process.env.API_KEY
-declare const process: { env: { API_KEY: string } };
 
 // Lazy initialization holder
 let aiClient: GoogleGenAI | null = null;
@@ -10,11 +8,12 @@ let aiClient: GoogleGenAI | null = null;
 const getAiClient = (): GoogleGenAI | null => {
   if (aiClient) return aiClient;
   
-  // Guideline: The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+  // The API key must be obtained exclusively from the environment variable process.env.API_KEY
+  // per strict coding guidelines. Assume it is configured and available in the execution context.
   const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
-    console.error("API Key is missing. Check process.env.API_KEY.");
+    console.error("API Key is missing. Ensure process.env.API_KEY is properly set.");
     return null;
   }
   
