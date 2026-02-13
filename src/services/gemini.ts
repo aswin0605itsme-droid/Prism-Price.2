@@ -1,161 +1,76 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types";
 
-// Lazy initialization holder
-let aiClient: GoogleGenAI | null = null;
+// --- 1. CONFIGURATION & SETUP ---
 
+// Use the correct Vite environment variable
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
+// Helper to get the client safely
 const getAiClient = (): GoogleGenAI => {
-  if (aiClient) return aiClient;
-  
-  // FIX: Use import.meta.env for Vite instead of process.env
-  const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-  
-  // Debug Log
-  console.log("Checking Key:", API_KEY ? "Key Found" : "Key Missing");
-  
   if (!API_KEY) {
-    console.error("CRITICAL ERROR: VITE_GEMINI_API_KEY is missing. Check your .env file.");
-    throw new Error('API Key missing. Please check console for details.');
+    console.error("CRITICAL: VITE_GEMINI_API_KEY is missing in .env file");
+    throw new Error("API Key is missing. Please check your .env configuration.");
   }
-  
-  aiClient = new GoogleGenAI({ apiKey: API_KEY });
-  return aiClient;
+  // Initialize the specific Google Gen AI SDK
+  return new GoogleGenAI({ apiKey: API_KEY });
 };
 
-/**
- * Searches for products using Gemini 3 Flash with Google Search Grounding.
- * Actively browses for current real-world prices.
- */
+// --- 2. MAIN SEARCH FUNCTION (Used by SearchBar) ---
+
 export const searchProducts = async (query: string): Promise<Product[]> => {
   try {
     const ai = getAiClient();
-
+    
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash', // Switched to stable model (Preview models often 404)
+      model: 'gemini-2.0-flash', // Using the fast, stable model
       contents: {
         parts: [
           { 
-            text: `You are an expert shopping assistant. Your task is to find the Best Price for: "${query}".
-
-            INSTRUCTIONS:
-            1. If the query is generic (e.g., "Harry Potter Books"), pick the most popular specific item.
-            2. Search across major Indian retailers: Amazon.in, Flipkart, Croma, Reliance Digital.
-            3. EXTRACT THE DIRECT PRODUCT URL.
-            4. Ensure the price is current.
-
-            OUTPUT FORMAT:
-            Return a JSON array ONLY.
+            text: `You are an expert shopping assistant. Find the best price for: "${query}" in India.
+            
+            OUTPUT RULES:
+            1. Return a JSON array ONLY.
+            2. Search Amazon.in, Flipkart, and Croma.
+            3. Use realistic pricing in INR.
+            4. If exact matches aren't found, suggest the closest popular alternative.
+            
+            JSON FORMAT:
             [
               {
                 "id": "unique_id",
-                "name": "Full Product Title",
-                "price": 3500,
+                "name": "Product Name",
+                "price": 0,
                 "currency": "INR",
-                "retailer": "Amazon",
-                "imageUrl": "https://...",
-                "link": "https://www.amazon.in/dp/...", 
-                "specs": [
-                  { "key": "Language", "value": "English" }
-                ]
+                "retailer": "Retailer Name",
+                "imageUrl": "https://placehold.co/400?text=Product",
+                "link": "https://amazon.in",
+                "specs": { "Key": "Value" }
               }
             ]`
           }
         ]
       },
       config: {
-        tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
       },
     });
 
-    // Robust JSON extraction
+    // Safe JSON Parsing
     const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    
-    // Attempt to extract JSON if it's wrapped in markdown blocks
     const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/\[\s*\{[\s\S]*\}\s*\]/);
-    
-    let jsonStr = "";
-    if (jsonMatch) {
-        jsonStr = jsonMatch[1] || jsonMatch[0];
-    } else {
-        jsonStr = text.replace(/^```json\n?|\n?```$/g, '').trim();
-    }
+    const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text.replace(/^```json\n?|\n?```$/g, '').trim();
 
-    if (!jsonStr) {
-      console.warn("Gemini returned invalid JSON structure:", text);
-      throw new Error("Received invalid data format from AI. Please try again.");
-    }
-    
+    if (!jsonStr) throw new Error("Invalid JSON from AI");
+
     const rawProducts = JSON.parse(jsonStr);
-    
-    // Post-process
+
     return rawProducts.map((p: any) => ({
-        id: p.id || Math.random().toString(36).substr(2, 9),
-        name: p.name,
-        price: p.price,
-        currency: p.currency,
-        retailer: p.retailer,
-        imageUrl: p.imageUrl || "https://placehold.co/400",
-        link: p.link?.startsWith('http') ? p.link : `https://${p.link}`,
-        specs: Array.isArray(p.specs) ? p.specs.reduce((acc: any, item: any) => {
-           if(item.key && item.value) acc[item.key] = item.value;
-           return acc;
-        }, {}) : {}
-    }));
-
-  } catch (error: any) {
-    console.error("Search Error:", error);
-    if (error.message.includes("API_KEY")) throw error;
-    throw new Error("Failed to fetch product data. " + error.message);
-  }
-};
-
-/**
- * Generates a chatbot response using Gemini
- */
-export const chatWithGemini = async (history: { role: string, parts: { text: string }[] }[], newMessage: string) => {
-  try {
-    const ai = getAiClient();
-    // Use standard model name
-    const model = ai.getGenerativeModel({ model: "gemini-2.0-flash" });
-    
-    const chat = model.startChat({
-        history: history.map(h => ({
-            role: h.role === 'ai' ? 'model' : 'user',
-            parts: h.parts
-        })),
-        systemInstruction: "You are Prism Assistant, a specialist in price tracking and gadget advice."
-    });
-    
-    const result = await chat.sendMessage(newMessage);
-    return result.response.text();
-  } catch (error) {
-    console.error("Chat Error:", error);
-    return "I'm currently offline due to a connection error.";
-  }
-};
-/**
- * Analyzes an uploaded image using Gemini Vision capabilities.
- */
-export const analyzeImage = async (base64Data: string, mimeType: string): Promise<string> => {
-  try {
-    const ai = getAiClient();
-    // Use a model known to support vision
-    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
-    
-    const result = await model.generateContent([
-        "Identify this exact product and its estimated current price in INR. Give me a name I can search for.",
-        {
-            inlineData: {
-                data: base64Data,
-                mimeType: mimeType
-            }
-        }
-    ]);
-    
-    return result.response.text();
-  } catch (error) {
-    console.error("Vision Error:", error);
-    return "I couldn't identify the product.";
-  }
-};
+      id: p.id || Math.random().toString(36).substring(7),
+      name: p.name,
+      price: typeof p.price === 'string' ? parseInt(p.price.replace(/[^0-9]/g, '')) : p.price,
+      currency: p.currency || "INR",
+      retailer: p.retailer || "Unknown",
+      imageUrl: p.imageUrl || "https://placehold.co/400?text=No+Image",
+      link: p.link || "#",
+      specs: Array.isArray(p.specs) ?
