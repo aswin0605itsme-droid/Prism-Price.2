@@ -134,3 +134,28 @@ export const chatWithGemini = async (history: { role: string, parts: { text: str
     return "I'm currently offline due to a connection error.";
   }
 };
+/**
+ * Analyzes an uploaded image using Gemini Vision capabilities.
+ */
+export const analyzeImage = async (base64Data: string, mimeType: string): Promise<string> => {
+  try {
+    const ai = getAiClient();
+    // Use a model known to support vision
+    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    const result = await model.generateContent([
+        "Identify this exact product and its estimated current price in INR. Give me a name I can search for.",
+        {
+            inlineData: {
+                data: base64Data,
+                mimeType: mimeType
+            }
+        }
+    ]);
+    
+    return result.response.text();
+  } catch (error) {
+    console.error("Vision Error:", error);
+    return "I couldn't identify the product.";
+  }
+};
