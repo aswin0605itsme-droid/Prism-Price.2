@@ -155,6 +155,7 @@ export const SearchBar: React.FC = () => {
               onClick={() => fileInputRef.current?.click()}
               disabled={isLoading}
               className="p-2 hover:bg-white/10 rounded-xl transition-colors text-white/70 hover:text-white disabled:opacity-30"
+              title="Upload Image"
             >
               <Camera className="w-5 h-5" />
             </button>
@@ -169,7 +170,7 @@ export const SearchBar: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className={`bg-white text-indigo-900 px-6 py-3 rounded-xl font-semibold hover:scale-105 transition-all active:scale-95 flex items-center gap-2 ${isLoading ? 'opacity-80' : ''}`}
+              className={`bg-white text-indigo-900 px-6 py-3 rounded-xl font-bold hover:scale-105 transition-all active:scale-95 flex items-center gap-2 ${isLoading ? 'opacity-80' : ''}`}
             >
               {isLoading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Search'}
             </button>
